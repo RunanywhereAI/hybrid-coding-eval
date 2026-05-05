@@ -11,4 +11,5 @@ tiktoken>=0.8,<1
 openai>=1.50,<2
 anthropic>=0.40,<1
 evalplus>=0.3,<1
-datasets>=2.19,<5    # BigCodeBench-Hard adapter (T1.3) — only required when refreshing the pinned tasks.jsonl
+datasets>=2.19,<5    # BigCodeBench-Hard (T1.3) + SWE-bench Verified (T1.2) adapters — only required when refreshing pinned tasks.jsonl
+swebench>=4.0,<5     # SWE-bench Verified harness (T1.2 verify + T3.2 scoring) — requires Docker at runtime
