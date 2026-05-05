@@ -1,0 +1,55 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Copyright (c) 2026 Sanchit Monga and hybrid-coding-eval contributors
+
+This license applies to non-code artefacts produced by this project:
+
+- Prior-art synthesis and research reports (`docs/PRIOR_ART.md`,
+  `research/**/report.md`, `research/**/results.json` — the synthesis,
+  not the upstream pages each report quotes).
+- Per-run metrics, decision traces, and aggregated score sheets
+  (`results/<dated-folder>/REPORT.md`, `results/<dated-folder>/raw.jsonl`,
+  and derived tables/charts).
+- Methodology, reproducing instructions, and design-decision docs
+  (`docs/METHODOLOGY.md`, `docs/REPRODUCING.md`, `docs/DECISIONS.md`,
+  `docs/ROUTING_STRATEGIES.md`, `docs/ARCHITECTURE.md`).
+- Published article text and figures (`article/**`, `viz/` PNG/SVG
+  outputs).
+
+It does NOT apply to:
+
+- Upstream benchmark datasets referenced or pinned by `benchmark/`
+  adapters — each retains its own license (MIT for HumanEval+/MBPP+,
+  Apache 2.0 for MBPP and FastChat-judge prompts, BigCodeBench-Hard's
+  Apache 2.0, SWE-bench Verified's CC-BY-4.0, etc.). See the adapter
+  README under each `benchmark/<name>/` subdirectory.
+- Source code (licensed under MIT; see `LICENSE`).
+- Vendored third-party code (see `NOTICE.md`).
+
+---
+
+You are free to:
+
+  Share — copy and redistribute the material in any medium or format.
+  Adapt — remix, transform, and build upon the material for any purpose,
+          even commercially.
+
+Under the following terms:
+
+  Attribution — You must give appropriate credit, provide a link to the
+    license, and indicate if changes were made. You may do so in any
+    reasonable manner, but not in any way that suggests the licensor
+    endorses you or your use.
+
+  No additional restrictions — You may not apply legal terms or
+    technological measures that legally restrict others from doing
+    anything the license permits.
+
+Full legal text: https://creativecommons.org/licenses/by/4.0/legalcode
+Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+
+Suggested citation:
+
+  Monga, Sanchit and contributors. "hybrid-coding-eval: reproducible
+  cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing
+  on coding tasks." 2026. https://github.com/RunanywhereAI/hybrid-coding-eval

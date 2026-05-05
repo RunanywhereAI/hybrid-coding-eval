@@ -361,7 +361,7 @@ The viral-friendly framing: "We graded 30 coding tasks across local / cloud / hy
 
 ## 12. Where we are right now (status)
 
-- ✅ Project scaffolded at `/Users/sanchitmonga/development/ODLM/MONOREPOOO/CODING/hybrid-coding-eval/`
+- ✅ Project scaffolded (this repo root).
 - 🟡 Research run firing (4 parallel deep-research queries; ~5–15 min)
   - 01 — coding eval benchmarks
   - 02 — local coding model performance

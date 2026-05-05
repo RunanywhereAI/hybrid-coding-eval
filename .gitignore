@@ -1,17 +1,29 @@
 .DS_Store
 .env
-.env.local
+.env.*
+!.env.example
 .venv/
 __pycache__/
 *.pyc
+*.pyo
 node_modules/
-results/20*/
-results/latest
 *.log
 _run.log
 _run.pid
-# keep research reports (they are the artefact)
+.pytest_cache/
 
-# External reference clones — treated as read-only vendored deps, not git-tracked
+# --- results ---
+# Ignore all intermediate per-run state under results/, but explicitly keep
+# the shippable report artefacts (REPORT.md, DECISION_MATRIX.md, *.png)
+# per-dated-folder. If we want to ship a run publicly, the REPORT and
+# charts below are the trackable pieces.
+results/
+!results/README.md
+!results/**/REPORT.md
+!results/**/DECISION_MATRIX.md
+!results/**/*.png
+!results/**/*.svg
+
+# --- EXTERNAL reference clones (treated as read-only vendored deps) ---
 EXTERNAL/minions/
 EXTERNAL/*/.git/

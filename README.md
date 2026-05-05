@@ -91,6 +91,53 @@ The opencode router itself is one of the integration targets: route R3 calls int
 
 ---
 
-## License (planned)
+## Quick start
 
-MIT for harness code; CC-BY-4.0 for results / dataset / article. Not yet finalised — see [`PLAN.md` §13](./PLAN.md) open question 2.
+> The full, copy-pasteable instructions are in [`docs/REPRODUCING.md`](./docs/REPRODUCING.md). A 30-second read first:
+
+```bash
+# 1. Clone and install the harness
+git clone https://github.com/RunanywhereAI/hybrid-coding-eval
+cd hybrid-coding-eval
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Configure cloud + local endpoints
+cp .env.example .env        # then edit to add OPEN_AI_API_KEY
+# Local: make sure Ollama is running with qwen3.6:27b-coding-mxfp8 pulled
+ollama pull qwen3.6:27b-coding-mxfp8
+
+# 3. Run the smoke sweep (3 tasks × 3 routes ≈ 15 min on M4 Max)
+python -m runners.orchestrator --smoke
+
+# 4. Aggregate + chart
+python -m analysis.aggregate results/smoke/
+```
+
+See [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) for the full 30-task sweep, hardware notes, troubleshooting, and Docker/SWE-bench setup.
+
+---
+
+## Where to read next
+
+- [`PLAN.md`](./PLAN.md) — detailed multi-phase plan, task list, open questions.
+- [`docs/METHODOLOGY.md`](./docs/METHODOLOGY.md) — how the eval works, what we measure, what we do **not** claim.
+- [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — copy-paste reproduction on a fresh machine.
+- [`docs/PRIOR_ART.md`](./docs/PRIOR_ART.md) — synthesised research findings (May 2026), with citations.
+- [`docs/ROUTING_STRATEGIES.md`](./docs/ROUTING_STRATEGIES.md) — details for each of the five routes (R1–R5).
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — code layout + data-flow.
+
+---
+
+## License and attribution
+
+- **Code** (harness, router, runners, scorers, analysis, viz): MIT — see [`LICENSE`](./LICENSE).
+- **Results, metrics, figures, prior-art synthesis, article**: CC-BY-4.0 — see [`LICENSE-DATA`](./LICENSE-DATA).
+- **Third-party code and research we build on**: see [`NOTICE.md`](./NOTICE.md). In particular:
+  - `EXTERNAL/lm-eval-harness-judge/` is vendored from [lm-sys/FastChat](https://github.com/lm-sys/FastChat) (Apache 2.0).
+  - `EXTERNAL/minions/` references [HazyResearch/minions](https://github.com/HazyResearch/minions) (MIT) — not tracked in git, cloned locally by users.
+  - Benchmarks (HumanEval+, MBPP+, BigCodeBench-Hard, SWE-bench Verified, LiveCodeBench, Aider Polyglot) each retain their upstream licenses; see adapter READMEs under [`benchmark/`](./benchmark/) and the paper citations in [`NOTICE.md`](./NOTICE.md).
+
+Suggested citation (if you use our numbers in a paper or article):
+
+> Monga, Sanchit and contributors. *hybrid-coding-eval: reproducible cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing on coding tasks.* 2026. https://github.com/RunanywhereAI/hybrid-coding-eval
