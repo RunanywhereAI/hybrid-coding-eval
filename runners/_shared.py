@@ -100,11 +100,17 @@ def task_prompt(task: Any) -> str:
     # HumanEval+ (category A) — task.prompt is a stub with docstring.
     if cat == "A":
         return _HUMANEVAL_TEMPLATE.format(prompt=task.prompt)
-    # BigCodeBench-Hard (category C, but has task.prompt + .entry_point) —
-    # distinguish by id prefix.
+    # BigCodeBench-Hard (category C). Adapter exposes `instruct_prompt` +
+    # `complete_prompt`; we prefer instruct (richer) with complete as a
+    # fallback. `task.prompt` does NOT exist on this adapter.
     tid = getattr(task, "id", "") or ""
     if tid.startswith("bigcodebench-hard/"):
-        return _BIGCODEBENCH_TEMPLATE.format(prompt=task.prompt)
+        prompt = (
+            getattr(task, "instruct_prompt", None)
+            or getattr(task, "complete_prompt", None)
+            or ""
+        )
+        return _BIGCODEBENCH_TEMPLATE.format(prompt=prompt)
     # Custom arch (category C, id prefix custom-arch/). Has `context` + `prompt`.
     if tid.startswith("custom-arch/") or hasattr(task, "rubric"):
         return _CUSTOM_ARCH_TEMPLATE.format(
