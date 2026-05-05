@@ -34,3 +34,6 @@ exclude = ["router*", "EXTERNAL*", "examples-poc*", "research*"]
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "slow: end-to-end tests that invoke the SWE-bench Docker harness (minutes per test).",
+]
