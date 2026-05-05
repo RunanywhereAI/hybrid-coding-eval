@@ -69,6 +69,13 @@ class ResultRow:
     # Optional metadata.
     started_at: str | None = None
     finished_at: str | None = None
+    # Populated when a runner fails (proxy 5xx, timeout, bad JSON). When set,
+    # callers should treat the row as a *skipped* run — tokens are zero, quality
+    # is all-None, and the failure string explains why. This was added as a
+    # minimal cross-cutting change so runners can report errors structurally
+    # without crashing the orchestrator. Default None preserves backward-compat
+    # for rows written before this field existed.
+    error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Flatten for JSONL serialization. Uses ``dataclasses.asdict`` which
