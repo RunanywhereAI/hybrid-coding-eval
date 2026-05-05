@@ -1,0 +1,29 @@
+{
+  "run_id": "a265a296",
+  "query": "Empirical performance of open-source local coding LLMs on standard coding benchmarks as of May 2026. Compare 20-40B parameter range models suitable for 64 GB Apple Silicon and 24 GB consumer NVIDIA: Qwen3-Coder-30B-A3B-Instruct, Qwen3.6-27B-Coding and any -A3B variants, Devstral-Small-2-24B, DeepSeek-Coder-V3-33B and DeepSeek-V3-Coder, Granite-Code-34B, Llama-Coder-30B, StarCoder3, Codestral-Mamba-7B, Yi-Coder-30B, Mistral-Codestral-22B, GLM-4.5-Coding-32B, internLM3-Coder. For each: HumanEval+, MBPP+, BigCodeBench-Hard, SWE-bench Verified pass@1, LiveCodeBench, Aider Polyglot scores published by the model authors AND by community leaderboards (HuggingFace BigCode leaderboard, Aider's official leaderboard, EvalPlus leaderboard). Also report quantization formats (GGUF Q4_K_M / Q5_K_M / Q8_0 / Q6_K, MLX bf16, mxfp8, AWQ-INT4, NVFP4) and Apple Silicon M3/M4 tok/s benchmarks for each (cite community measurements). Where do these local models match GPT-5 / GPT-5.5 / Claude Sonnet 4.6 / Claude Opus 4.7 / Gemini 2.5 Pro quality? Where do they fall apart? Be specific about task type: function-completion (do they match cloud), multi-file refactoring (do they match), agentic tool-use loops (do they match), explanation/architecture questions (do they match), debugging unfamiliar codebases (do they match), test generation (do they match), API design (do they match). Cite specific scores and papers/blog posts published in 2025-2026.",
+  "started_at": "2026-05-04T21:27:01Z",
+  "finished_at": "2026-05-04T21:29:51Z",
+  "exa_source_count": 14,
+  "perplexity_model": "sonar-deep-research",
+  "perplexity_elapsed": 169.89820791594684,
+  "perplexity_usage": {
+    "prompt_tokens": 454,
+    "completion_tokens": 9519,
+    "total_tokens": 9973,
+    "search_context_size": null,
+    "citation_tokens": 37175,
+    "num_search_queries": 40,
+    "reasoning_tokens": 223890,
+    "cost": {
+      "input_tokens_cost": 0.00091,
+      "output_tokens_cost": 0.07615,
+      "reasoning_tokens_cost": 0.67167,
+      "request_cost": null,
+      "citation_tokens_cost": 0.07435,
+      "search_queries_cost": 0.2,
+      "total_cost": 1.02308
+    }
+  },
+  "citation_count": 67,
+  "errors": []
+}

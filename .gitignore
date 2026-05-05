@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.local
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+results/20*/
+results/latest
+*.log
+_run.log
+_run.pid
+# keep research reports (they are the artefact)
