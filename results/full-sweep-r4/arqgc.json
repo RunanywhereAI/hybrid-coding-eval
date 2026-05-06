@@ -1,0 +1,10 @@
+{
+  "scenario": "openai-gpt5.5",
+  "cost_cap": 0.0,
+  "per_route": {
+    "R4": 0.4
+  },
+  "per_category_route": {
+    "B/R4": 0.4
+  }
+}

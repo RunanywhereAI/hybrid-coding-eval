@@ -1,0 +1,170 @@
+{
+  "generated_at": "2026-05-06T08:57:30.485905+00:00",
+  "source": "results/full-sweep-r4/raw.jsonl",
+  "pricing_scenarios": [
+    "openai-gpt5.5",
+    "openai-gpt5",
+    "openai-gpt5-mini",
+    "anthropic-claude-opus-4.7",
+    "anthropic-claude-sonnet-4.6"
+  ],
+  "row_count": 10,
+  "per_category_route": {
+    "B/R4": {
+      "count": 10,
+      "prompt_tokens_median": 10587.0,
+      "prompt_tokens_mean": 9309.3,
+      "completion_tokens_median": 6712.5,
+      "completion_tokens_mean": 6231.3,
+      "cloud_prompt_tokens_sum": 81290,
+      "cloud_completion_tokens_sum": 53991,
+      "local_prompt_tokens_sum": 11803,
+      "local_completion_tokens_sum": 8322,
+      "wall_ms_median": 147195.5,
+      "wall_ms_mean": 135813.8,
+      "total_calls_median": 0.0,
+      "local_calls_median": 0.0,
+      "cloud_calls_median": 0.0,
+      "quality_median": 0.0,
+      "quality_mean": 0.4,
+      "functional_pass_rate": 0.4,
+      "error_rate": 0.0,
+      "cost_openai-gpt5.5_median": 0.22242,
+      "cost_openai-gpt5.5_mean": 0.20261799999999996,
+      "cost_openai-gpt5.5_total": 2.0261799999999996,
+      "cost_openai-gpt5_median": 0.07012750000000001,
+      "cost_openai-gpt5_mean": 0.06415225,
+      "cost_openai-gpt5_total": 0.6415225,
+      "cost_openai-gpt5-mini_median": 0.0140255,
+      "cost_openai-gpt5-mini_mean": 0.012830449999999998,
+      "cost_openai-gpt5-mini_total": 0.1283045,
+      "cost_anthropic-claude-opus-4.7_median": 0.580125,
+      "cost_anthropic-claude-opus-4.7_mean": 0.5268675,
+      "cost_anthropic-claude-opus-4.7_total": 5.268675,
+      "cost_anthropic-claude-sonnet-4.6_median": 0.11602499999999999,
+      "cost_anthropic-claude-sonnet-4.6_mean": 0.10537349999999998,
+      "cost_anthropic-claude-sonnet-4.6_total": 1.0537349999999999
+    }
+  },
+  "per_route": {
+    "R4": {
+      "count": 10,
+      "prompt_tokens_median": 10587.0,
+      "prompt_tokens_mean": 9309.3,
+      "completion_tokens_median": 6712.5,
+      "completion_tokens_mean": 6231.3,
+      "cloud_prompt_tokens_sum": 81290,
+      "cloud_completion_tokens_sum": 53991,
+      "local_prompt_tokens_sum": 11803,
+      "local_completion_tokens_sum": 8322,
+      "wall_ms_median": 147195.5,
+      "wall_ms_mean": 135813.8,
+      "total_calls_median": 0.0,
+      "local_calls_median": 0.0,
+      "cloud_calls_median": 0.0,
+      "quality_median": 0.0,
+      "quality_mean": 0.4,
+      "functional_pass_rate": 0.4,
+      "error_rate": 0.0,
+      "cost_openai-gpt5.5_median": 0.22242,
+      "cost_openai-gpt5.5_mean": 0.20261799999999996,
+      "cost_openai-gpt5.5_total": 2.0261799999999996,
+      "cost_openai-gpt5_median": 0.07012750000000001,
+      "cost_openai-gpt5_mean": 0.06415225,
+      "cost_openai-gpt5_total": 0.6415225,
+      "cost_openai-gpt5-mini_median": 0.0140255,
+      "cost_openai-gpt5-mini_mean": 0.012830449999999998,
+      "cost_openai-gpt5-mini_total": 0.1283045,
+      "cost_anthropic-claude-opus-4.7_median": 0.580125,
+      "cost_anthropic-claude-opus-4.7_mean": 0.5268675,
+      "cost_anthropic-claude-opus-4.7_total": 5.268675,
+      "cost_anthropic-claude-sonnet-4.6_median": 0.11602499999999999,
+      "cost_anthropic-claude-sonnet-4.6_mean": 0.10537349999999998,
+      "cost_anthropic-claude-sonnet-4.6_total": 1.0537349999999999
+    }
+  },
+  "per_category": {
+    "B": {
+      "count": 10,
+      "prompt_tokens_median": 10587.0,
+      "prompt_tokens_mean": 9309.3,
+      "completion_tokens_median": 6712.5,
+      "completion_tokens_mean": 6231.3,
+      "cloud_prompt_tokens_sum": 81290,
+      "cloud_completion_tokens_sum": 53991,
+      "local_prompt_tokens_sum": 11803,
+      "local_completion_tokens_sum": 8322,
+      "wall_ms_median": 147195.5,
+      "wall_ms_mean": 135813.8,
+      "total_calls_median": 0.0,
+      "local_calls_median": 0.0,
+      "cloud_calls_median": 0.0,
+      "quality_median": 0.0,
+      "quality_mean": 0.4,
+      "functional_pass_rate": 0.4,
+      "error_rate": 0.0,
+      "cost_openai-gpt5.5_median": 0.22242,
+      "cost_openai-gpt5.5_mean": 0.20261799999999996,
+      "cost_openai-gpt5.5_total": 2.0261799999999996,
+      "cost_openai-gpt5_median": 0.07012750000000001,
+      "cost_openai-gpt5_mean": 0.06415225,
+      "cost_openai-gpt5_total": 0.6415225,
+      "cost_openai-gpt5-mini_median": 0.0140255,
+      "cost_openai-gpt5-mini_mean": 0.012830449999999998,
+      "cost_openai-gpt5-mini_total": 0.1283045,
+      "cost_anthropic-claude-opus-4.7_median": 0.580125,
+      "cost_anthropic-claude-opus-4.7_mean": 0.5268675,
+      "cost_anthropic-claude-opus-4.7_total": 5.268675,
+      "cost_anthropic-claude-sonnet-4.6_median": 0.11602499999999999,
+      "cost_anthropic-claude-sonnet-4.6_mean": 0.10537349999999998,
+      "cost_anthropic-claude-sonnet-4.6_total": 1.0537349999999999
+    }
+  },
+  "headline": {
+    "quality": {
+      "B_R4": 0.0
+    },
+    "wall_ms_median": {
+      "B_R4": 147195.5
+    },
+    "cost_openai-gpt5.5": {
+      "B_R4": 0.22242
+    },
+    "cost_openai-gpt5": {
+      "B_R4": 0.07012750000000001
+    },
+    "cost_openai-gpt5-mini": {
+      "B_R4": 0.0140255
+    },
+    "cost_anthropic-claude-opus-4.7": {
+      "B_R4": 0.580125
+    },
+    "cost_anthropic-claude-sonnet-4.6": {
+      "B_R4": 0.11602499999999999
+    }
+  },
+  "totals": {
+    "tokens_cloud_prompt_total": 81290,
+    "tokens_cloud_completion_total": 53991,
+    "tokens_local_prompt_total": 11803,
+    "tokens_local_completion_total": 8322,
+    "per_route": {
+      "R4": {
+        "tokens_cloud_prompt_total": 81290,
+        "tokens_cloud_completion_total": 53991,
+        "tokens_local_prompt_total": 11803,
+        "tokens_local_completion_total": 8322,
+        "cost_openai-gpt5.5_total": 2.0261799999999996,
+        "cost_openai-gpt5_total": 0.6415225,
+        "cost_openai-gpt5-mini_total": 0.1283045,
+        "cost_anthropic-claude-opus-4.7_total": 5.268675,
+        "cost_anthropic-claude-sonnet-4.6_total": 1.0537349999999999
+      }
+    }
+  },
+  "success_rate_per_route_per_category": {
+    "B": {
+      "R4": 0.4
+    }
+  }
+}

@@ -82,6 +82,17 @@ from minions.clients.openai import OpenAIClient  # noqa: E402
 from minions import minion as _minion_mod  # noqa: E402
 
 
+def _ensure_minion_shape(d: dict, text: str) -> dict:
+    """Guarantee the dict has every field Minion's loop might access."""
+    if not isinstance(d, dict):
+        d = {}
+    d.setdefault("decision", "provide_final_answer")
+    d.setdefault("answer", text)
+    d.setdefault("message", text)
+    d.setdefault("mcp_tool_calls", [])
+    return d
+
+
 def _resilient_extract_json(text: str) -> dict:
     """Patched version of Minion's _extract_json that handles SWE-bench
     diffs gracefully. Stanford's regex-based extractor stops at the
@@ -98,7 +109,7 @@ def _resilient_extract_json(text: str) -> dict:
     cleaned = _re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=_re.MULTILINE).strip()
     for candidate in (text, cleaned):
         try:
-            return _json.loads(candidate)
+            return _ensure_minion_shape(_json.loads(candidate), text)
         except _json.JSONDecodeError:
             pass
     depth, start, in_str, escape = 0, -1, False, False
@@ -121,14 +132,46 @@ def _resilient_extract_json(text: str) -> dict:
             depth -= 1
             if depth == 0 and start != -1:
                 try:
-                    return _json.loads(cleaned[start:i+1])
+                    return _ensure_minion_shape(_json.loads(cleaned[start:i+1]), text)
                 except _json.JSONDecodeError:
                     continue
-    # Fallback: treat entire text as the final answer.
-    return {"decision": "provide_final_answer", "answer": text}
+    # Fallback: produce a record that's valid for BOTH the initial
+    # supervisor question (needs "message") and the final answer
+    # (needs "decision" == provide_final_answer + "answer"). Minion's
+    # early-round code reads ``supervisor_json["message"]``; later-round
+    # code reads ``supervisor_json["decision"]``. Setting both fields
+    # lets the conversation make it to the final round even when the
+    # supervisor produced prose instead of JSON.
+    return {
+        "message": text,
+        "decision": "provide_final_answer",
+        "answer": text,
+        "mcp_tool_calls": [],
+    }
 
 
 _minion_mod._extract_json = _resilient_extract_json
+
+# Wrap json.loads inside Minion's module too — the initial supervisor call
+# uses ``json.loads`` directly (not _extract_json), which raises on the
+# same pathological inputs. If it succeeds but yields a dict missing
+# `message`/`decision`, we fill them in defensively.
+_orig_json_loads = _minion_mod.json.loads
+
+
+def _resilient_json_loads(text, *args, **kwargs):
+    try:
+        obj = _orig_json_loads(text, *args, **kwargs)
+        if isinstance(obj, dict):
+            return _ensure_minion_shape(obj, text if isinstance(text, str) else "")
+        return obj
+    except Exception:
+        # Let the caller's ``except`` clause fall through to _extract_json,
+        # which is already patched.
+        raise
+
+
+_minion_mod.json.loads = _resilient_json_loads
 from minions.minion import Minion  # noqa: E402
 
 from lib.metrics import (  # noqa: E402
@@ -140,9 +183,21 @@ from lib.metrics import (  # noqa: E402
 )
 
 ROUTE = "R4"
-PROXY_URL = "http://127.0.0.1:8787/v1"
+PROXY_URL = "http://127.0.0.1:8787"
 CLOUD_MODEL = "router/always-cloud"
 LOCAL_MODEL = "router/always-local"
+
+
+def _ensure_v1(base: str) -> str:
+    """Normalise the proxy base URL to include ``/v1`` for the OpenAI
+    SDK's endpoint construction. Accepts both flavours so the runner
+    can be called from the orchestrator (which passes the bare
+    ``http://127.0.0.1:8787``) or standalone.
+    """
+    base = (base or "").rstrip("/")
+    if base.endswith("/v1"):
+        return base
+    return f"{base}/v1"
 
 
 def _task_slug(task_id: str) -> str:
@@ -218,16 +273,17 @@ def run(
         output_ref = str(out_path.resolve())
 
     api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("OPEN_AI_API_KEY")
+    base_url = _ensure_v1(proxy_url)
     supervisor = OpenAIClient(
         model_name=CLOUD_MODEL,
         api_key=api_key,
-        base_url=proxy_url,
+        base_url=base_url,
         max_tokens=4000,
     )
     worker = OpenAIClient(
         model_name=LOCAL_MODEL,
         api_key=api_key,
-        base_url=proxy_url,
+        base_url=base_url,
         max_tokens=2000,
         local=True,  # tells the library to return the 3-tuple shape
     )

@@ -48,7 +48,7 @@ CATEGORY_SOURCES: dict[str, list[str]] = {
 }
 
 #: Valid --routes values.
-ROUTES: tuple[str, ...] = ("R1", "R2", "R3")
+ROUTES: tuple[str, ...] = ("R1", "R2", "R3", "R4")
 
 
 # --------------------------------------------------------------------------- #
