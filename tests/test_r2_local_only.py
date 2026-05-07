@@ -25,7 +25,7 @@ import pytest
 
 from hybrid_coding_eval.benchmarks.humaneval_plus.adapter import load_tasks
 from hybrid_coding_eval.core.pricing import compute_cost
-from runners import r2_local_only
+from hybrid_coding_eval.runners import r2_local_only
 
 PROXY_URL = "http://127.0.0.1:8787"
 

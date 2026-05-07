@@ -54,7 +54,7 @@ from hybrid_coding_eval.core.metrics import (  # noqa: E402
     Routing,
     TokenUsage,
 )
-from scorers import llm_judge  # noqa: E402
+from hybrid_coding_eval.scorers import llm_judge  # noqa: E402
 
 
 def _row_from_dict(d: dict) -> ResultRow:

@@ -167,19 +167,19 @@ def pair_already_done(raw_path: Path, task_id: str, route: str) -> bool:
 
 def _runner_for(route: str) -> Callable[..., ResultRow]:
     if route == "R1":
-        from runners import r1_cloud_only
+        from hybrid_coding_eval.runners import r1_cloud_only
 
         return r1_cloud_only.run
     if route == "R2":
-        from runners import r2_local_only
+        from hybrid_coding_eval.runners import r2_local_only
 
         return r2_local_only.run
     if route == "R3":
-        from runners import r3_hybrid_architect
+        from hybrid_coding_eval.runners import r3_hybrid_architect
 
         return r3_hybrid_architect.run
     if route == "R4":
-        from runners import r4_minion
+        from hybrid_coding_eval.runners import r4_minion
 
         return r4_minion.run
     raise ValueError(f"unknown route {route!r}")
@@ -215,7 +215,9 @@ def _read_output_text(row: ResultRow) -> str:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    from .paths import repo_root
+
+    return repo_root()
 
 
 # --------------------------------------------------------------------------- #
@@ -236,7 +238,7 @@ def score_row(row: ResultRow, source: str, task: Any) -> Quality | None:
     model_output = _read_output_text(row)
 
     if source in ("humaneval_plus", "bigcodebench_hard"):
-        from scorers import functional_python
+        from hybrid_coding_eval.scorers import functional_python
 
         try:
             return functional_python.score(task, model_output)
@@ -245,7 +247,7 @@ def score_row(row: ResultRow, source: str, task: Any) -> Quality | None:
             return None
 
     if source == "swebench_verified":
-        from scorers import swebench as swebench_scorer
+        from hybrid_coding_eval.scorers import swebench as swebench_scorer
 
         try:
             return swebench_scorer.score(task, model_output)
