@@ -10,27 +10,27 @@ If you redistribute this repository, keep this file intact.
 
 ## Vendored source (tracked in this repo)
 
-### `EXTERNAL/lm-eval-harness-judge/`
+### `vendor/lm-eval-harness-judge/`
 
 - **Upstream**: [lm-sys/FastChat](https://github.com/lm-sys/FastChat) —
   `fastchat/llm_judge/` directory, commit
   `587d5cfa1609a43d192cedb8441cac3c17db105d`.
 - **License**: Apache License 2.0. Full text at
-  `EXTERNAL/lm-eval-harness-judge/LICENSE`.
+  `vendor/lm-eval-harness-judge/LICENSE`.
 - **What we use**: prompt templates (`src/data/judge_prompts.jsonl`),
   position-swap bias-correction methodology, answer-parsing regex.
   Adapted into `scorers/llm_judge.py` — we do not import FastChat as a
   Python dependency.
-- **Modifications**: none inside `EXTERNAL/lm-eval-harness-judge/`. It is
+- **Modifications**: none inside `vendor/lm-eval-harness-judge/`. It is
   vendored read-only. Our own re-implementation lives in `scorers/`.
-- See `EXTERNAL/lm-eval-harness-judge/ATTRIBUTION.md` for fetch command,
+- See `vendor/lm-eval-harness-judge/ATTRIBUTION.md` for fetch command,
   re-fetch procedure, and adopt-vs-leave-behind notes.
 
 ---
 
 ## Referenced (cloned locally, NOT tracked)
 
-### `EXTERNAL/minions/`
+### `vendor/minions/`
 
 - **Upstream**: [HazyResearch/minions](https://github.com/HazyResearch/minions).
 - **Paper**: Narayan, A. et al. *Minions: Cost-efficient Collaboration
@@ -38,7 +38,7 @@ If you redistribute this repository, keep this file intact.
 - **License**: MIT.
 - **Status in this repo**: **not tracked** — listed in `.gitignore`. Users
   who want to read the reference implementation must clone it themselves
-  (instructions in `EXTERNAL/README.md`).
+  (instructions in `vendor/README.md`).
 - **What we use**: the `DevMinion` runbook→execute→review→edit→synthesize
   loop informed R4/R5 routing strategies. We reimplement the ideas in
   `runners/` — no code is copied.
@@ -77,7 +77,7 @@ copy of the upstream attribution and pin commit.
 ### LLM-as-judge methodology
 
 - Based on MT-Bench (Zheng et al., NeurIPS 2023; arXiv 2306.05685),
-  via FastChat. See `EXTERNAL/lm-eval-harness-judge/` above.
+  via FastChat. See `vendor/lm-eval-harness-judge/` above.
 
 ---
 
