@@ -1,0 +1,17 @@
+The task is to complete a Python function that returns the sum of all odd elements located at even positions in a non-empty list of integers. The examples indicate that positions are zero-based, so the function should examine indices 0, 2, 4, and so on, then include only values that are odd.
+
+A concise solution is:
+
+```python
+def solution(lst):
+    """Given a non-empty list of integers, return the sum of all of the odd elements that are in even positions.
+
+    Examples
+    solution([5, 8, 7, 1]) ==> 12
+    solution([3, 3, 3, 3, 3]) ==> 9
+    solution([30, 13, 24, 321]) ==> 0
+    """
+    return sum(x for x in lst[::2] if x % 2 != 0)
+```
+
+This works by slicing the list with `lst[::2]` to get elements at even indices, filtering those elements to keep only odd numbers, and summing the result.

@@ -1,0 +1,21 @@
+```python
+def get_odd_collatz(n):
+    """
+    Given a positive integer n, return a sorted list that has the odd numbers in collatz sequence.
+    """
+    if not isinstance(n, int) or n <= 0:
+        return []
+
+    odds = []
+
+    while n != 1:
+        if n % 2 != 0:
+            odds.append(n)
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3 * n + 1
+
+    odds.append(1)
+    return sorted(odds)
+```

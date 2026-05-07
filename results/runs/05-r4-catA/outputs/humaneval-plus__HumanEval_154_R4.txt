@@ -1,0 +1,24 @@
+The task is to implement a function `cycpattern_check(first_word, second_word)` that returns `True` if `second_word` or any cyclic rotation of `second_word` appears as a substring inside `first_word`; otherwise it returns `False`.
+
+A straightforward solution is to generate each rotation of `second_word` and test whether that rotation occurs in `first_word`.
+
+```python
+def cycpattern_check(first_word, second_word):
+    if second_word == "":
+        return True
+
+    for i in range(len(second_word)):
+        rotation = second_word[i:] + second_word[:i]
+        if rotation in first_word:
+            return True
+
+    return False
+```
+
+This satisfies the examples:
+- `cycpattern_check("abcd", "abd")` returns `False`
+- `cycpattern_check("hello", "ell")` returns `True`
+- `cycpattern_check("whassup", "psus")` returns `False`
+- `cycpattern_check("abab", "baa")` returns `True`, because a rotation of `"baa"` is `"aba"`
+- `cycpattern_check("efef", "eeff")` returns `False`
+- `cycpattern_check("himenss", "simen")` returns `True`, because a rotation of `"simen"` is `"imens"`

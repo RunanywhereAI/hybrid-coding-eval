@@ -1,0 +1,54 @@
+{
+  "config": {
+    "variant_tag": "r4-catA",
+    "out_dir": "results/runs/05-r4-catA",
+    "models": {
+      "cloud": "gpt-5.5",
+      "cloud_fallback": null,
+      "local": "devstral:24b",
+      "judge": "claude-opus-4-7",
+      "router_classifier": "qwen3:0.6b",
+      "local_base_url": "http://127.0.0.1:11434/v1",
+      "cloud_base_url": "https://api.openai.com/v1"
+    },
+    "router": {
+      "strategy": "heuristic",
+      "port": 8787,
+      "banner": true,
+      "heuristic_threshold": null,
+      "prompt_cache": false
+    },
+    "benchmark": {
+      "categories": [
+        "A"
+      ],
+      "routes": [
+        "R4"
+      ],
+      "tasks_per_category": null,
+      "seeds": [
+        42
+      ],
+      "smoke": false
+    },
+    "pricing": {
+      "scenarios": [
+        "openai-gpt5.5",
+        "openai-gpt5",
+        "openai-gpt5-mini",
+        "anthropic-claude-opus-4.7",
+        "anthropic-claude-sonnet-4.6",
+        "anthropic-claude-haiku-4.5"
+      ],
+      "primary": "openai-gpt5.5"
+    },
+    "scoring": {
+      "skip": false,
+      "judge_temperature": 0.0,
+      "swebench_image": "hybrid-eval-python:latest"
+    },
+    "resume": false,
+    "git_sha_pin": null
+  },
+  "sha256": "dbe1cbc4a940e20da8bc59ef21a9042aa2b7eff99032a3e5d46929d529dd5aca"
+}

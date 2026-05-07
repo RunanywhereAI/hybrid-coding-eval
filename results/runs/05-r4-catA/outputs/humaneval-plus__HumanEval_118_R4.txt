@@ -1,0 +1,14 @@
+The available context is sufficient to complete the `get_closest_vowel` function. The function should scan the word from right to left, ignoring the first and last characters because vowels at the beginning or end do not count. It should return the first vowel it finds that has consonants on both sides. If no such vowel exists, it should return an empty string. Since the input contains only English letters, checking membership in a vowel string is enough to distinguish vowels from consonants.
+
+```python
+def get_closest_vowel(word):
+    vowels = "AEIOUaeiou"
+
+    for i in range(len(word) - 2, 0, -1):
+        if word[i] in vowels and word[i - 1] not in vowels and word[i + 1] not in vowels:
+            return word[i]
+
+    return ""
+```
+
+This implementation handles the required docstring behavior and reasonable edge cases, including short words, words with no valid internal vowel, and words where only edge vowels are present.

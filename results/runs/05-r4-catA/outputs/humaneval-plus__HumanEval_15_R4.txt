@@ -1,0 +1,14 @@
+The task is to complete the Python function `string_sequence`. Based on the docstring, the function must return a single string containing space-delimited numbers starting at `0` and ending at `n`, inclusive. For example, `string_sequence(0)` should return `'0'`, and `string_sequence(5)` should return `'0 1 2 3 4 5'`.
+
+A concise way to implement this is to generate the sequence with `range(n + 1)`, convert each number to a string, and join the results with spaces.
+
+```python
+def string_sequence(n: int) -> str:
+    """ Return a string containing space-delimited numbers starting from 0 upto n inclusive.
+    >>> string_sequence(0)
+    '0'
+    >>> string_sequence(5)
+    '0 1 2 3 4 5'
+    """
+    return ' '.join(map(str, range(n + 1)))
+```

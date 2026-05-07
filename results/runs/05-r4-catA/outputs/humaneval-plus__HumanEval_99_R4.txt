@@ -1,0 +1,21 @@
+The task is to implement `closest_integer(value)`, where `value` is a string representation of a number. The function should return the nearest integer, and if the number is exactly halfway between two integers, it should round away from zero. This can be done by converting the input string to a float, adding `0.5` for positive numbers, subtracting `0.5` for negative numbers, and then converting to `int`, since Python's `int()` truncates toward zero.
+
+```python
+def closest_integer(value):
+    '''
+    Create a function that takes a value (string) representing a number
+    and returns the closest integer to it. If the number is equidistant
+    from two integers, round it away from zero.
+    '''
+    num = float(value)
+    if num > 0:
+        return int(num + 0.5)
+    else:
+        return int(num - 0.5)
+```
+
+Examples:
+- `closest_integer("10")` returns `10`
+- `closest_integer("15.3")` returns `15`
+- `closest_integer("14.5")` returns `15`
+- `closest_integer("-14.5")` returns `-15`

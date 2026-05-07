@@ -1,0 +1,15 @@
+[  1/ 10] A R4 humaneval-plus/HumanEval_99                      wall=45605ms tokens=5433 PASS
+[  2/ 10] A R4 humaneval-plus/HumanEval_123                     wall=57320ms tokens=6308 PASS
+[  3/ 10] A R4 humaneval-plus/HumanEval_103                     wall=30915ms tokens=4654 FAIL
+[  4/ 10] A R4 humaneval-plus/HumanEval_161                     wall=34866ms tokens=4501 PASS
+[  5/ 10] A R4 humaneval-plus/HumanEval_154                     wall=29845ms tokens=4559 PASS
+[  6/ 10] A R4 humaneval-plus/HumanEval_15                      wall=27279ms tokens=4834 PASS
+[  7/ 10] A R4 humaneval-plus/HumanEval_13                      wall=40706ms tokens=4842 PASS
+[  8/ 10] A R4 humaneval-plus/HumanEval_121                     wall=33789ms tokens=4957 PASS
+[  9/ 10] A R4 humaneval-plus/HumanEval_77                      wall=46791ms tokens=6531 PASS
+[ 10/ 10] A R4 humaneval-plus/HumanEval_118                     wall=46366ms tokens=5805 PASS
+
+## summary
+- planned pairs: 10
+- out dir: /Users/sanchitmonga/development/ODLM/MONOREPOOO/CODING/hybrid-coding-eval/results/runs/05-r4-catA
+- raw.jsonl: /Users/sanchitmonga/development/ODLM/MONOREPOOO/CODING/hybrid-coding-eval/results/runs/05-r4-catA/raw.jsonl

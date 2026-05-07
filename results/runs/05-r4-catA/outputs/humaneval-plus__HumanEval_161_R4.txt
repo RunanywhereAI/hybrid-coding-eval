@@ -1,0 +1,20 @@
+The context is sufficient to complete the function. The required behavior is: if the input string contains at least one letter, swap the case of every letter while leaving non-letter characters unchanged; if the string contains no letters, return the reversed string.
+
+```python
+def solve(s):
+    if not any(ch.isalpha() for ch in s):
+        return s[::-1]
+
+    return ''.join(
+        ch.swapcase() if ch.isalpha() else ch
+        for ch in s
+    )
+```
+
+This satisfies the provided examples:
+
+```python
+solve("1234")  # returns "4321"
+solve("ab")    # returns "AB"
+solve("#a@C")  # returns "#A@c"
+```

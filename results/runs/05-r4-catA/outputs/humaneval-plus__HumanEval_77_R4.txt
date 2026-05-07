@@ -1,0 +1,37 @@
+The task is to complete the `iscube(a)` function so that it returns `True` when the integer `a` is the cube of some integer, and `False` otherwise. The function must handle positive numbers, negative numbers, and zero. The examples require `iscube(1)`, `iscube(-1)`, `iscube(64)`, and `iscube(0)` to return `True`, while `iscube(2)` and `iscube(180)` should return `False`.
+
+A robust way to solve this is to avoid floating-point cube roots, because expressions like `a ** (1/3)` can produce precision errors for large integers. Instead, use integer arithmetic and binary search on the absolute value of `a`.
+
+```python
+def iscube(a):
+    '''
+    Write a function that takes an integer a and returns True
+    if this integer is a cube of some integer number.
+    Note: you may assume the input is always valid.
+
+    Examples:
+    iscube(1) ==> True
+    iscube(2) ==> False
+    iscube(-1) ==> True
+    iscube(64) ==> True
+    iscube(0) ==> True
+    iscube(180) ==> False
+    '''
+    x = abs(a)
+
+    lo, hi = 0, x
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        cube = mid ** 3
+
+        if cube == x:
+            return True
+        elif cube < x:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    return False
+```
+
+This works because if `a` is negative, then `a` is a cube exactly when `abs(a)` is a cube, since every positive cube has a corresponding negative cube. It also correctly handles `0`, because `0 ** 3 == 0`.

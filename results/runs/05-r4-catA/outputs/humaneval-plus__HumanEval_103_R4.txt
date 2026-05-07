@@ -1,0 +1,1 @@
+The docstring describes a task where, given two positive integers n and m, you compute the average of all integers from n through m inclusive. The computed average should then be rounded to the nearest integer and converted to binary. If n is greater than m, the function should return -1 instead.
