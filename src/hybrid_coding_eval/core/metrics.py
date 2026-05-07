@@ -59,7 +59,7 @@ class Routing:
 class ResultRow:
     task_id: str
     category: str  # 'A' | 'B' | 'C'
-    route: str  # 'R1' | 'R2' | 'R3' (| 'R4')
+    route: str  # 'R1' | 'R2' | 'R3' | 'R4'
     hardware_profile_ref: str
     tokens: TokenUsage
     latency: Latency
@@ -76,6 +76,23 @@ class ResultRow:
     # without crashing the orchestrator. Default None preserves backward-compat
     # for rows written before this field existed.
     error: str | None = None
+    # Variant tag — populated from ``BenchConfig.variant_tag``. Rows from the
+    # MVP sweeps (v1-qwen, v2-qwen-fixed, v2-devstral, r4-minion) set this
+    # directly; post-T-07 rows inherit it from the loaded config. Optional
+    # for backward compat with rows written before the field existed.
+    variant: str | None = None
+    # Model provenance for the row. None on historical rows (the info was
+    # previously encoded only in ``routing.per_call_backends``); required on
+    # all new sweeps. Populated by runners from the resolved BenchConfig.
+    cloud_model_id: str | None = None
+    local_model_id: str | None = None
+    judge_model_id: str | None = None
+    router_classifier_model_id: str | None = None
+    router_strategy: str | None = None
+    seed: int | None = None
+    # SHA256 of the canonical JSON dump of the BenchConfig. Pairs every row
+    # uniquely with the config that produced it.
+    config_sha: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Flatten for JSONL serialization. Uses ``dataclasses.asdict`` which
