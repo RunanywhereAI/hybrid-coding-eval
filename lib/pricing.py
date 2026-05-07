@@ -16,9 +16,13 @@ reasoning separately; it's surfaced only for transparency.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import math
+import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -31,15 +35,60 @@ __all__ = [
     "fmt_tok",
 ]
 
+logger = logging.getLogger(__name__)
+
+
+def _resolve_tables_path() -> Path:
+    """Find the shared pricing-tables JSON.
+
+    Prefers :func:`hybrid_coding_eval.core.paths.pricing_tables_path`
+    when the new package is importable; falls back to a local walk so
+    this legacy loader keeps working during the mono-repo migration
+    even before ``pip install -e .`` picks up the new layout.
+    """
+    override = os.environ.get("HYBRID_PRICING_TABLE")
+    if override:
+        return Path(override).resolve()
+    try:
+        # Preferred resolver once the new package is on sys.path.
+        repo_root_src = (
+            Path(__file__).resolve().parent.parent / "src"
+        )
+        if str(repo_root_src) not in sys.path:
+            sys.path.insert(0, str(repo_root_src))
+        from hybrid_coding_eval.core.paths import pricing_tables_path
+
+        return pricing_tables_path()
+    except Exception:  # pragma: no cover — defensive during migration
+        # Walk up from this file until we find pyproject.toml (repo root),
+        # then look for configs/pricing/pricing_tables.json.
+        here = Path(__file__).resolve()
+        for parent in (here, *here.parents):
+            if (parent / "pyproject.toml").is_file():
+                return parent / "configs" / "pricing" / "pricing_tables.json"
+        # Last-ditch: legacy location co-located with this file.
+        return here.parent / "pricing_tables.json"
+
+
 # Shared source of truth — same JSON file loaded by ``router/pricing.mjs``.
-_TABLES_PATH = Path(__file__).resolve().parent / "pricing_tables.json"
-with _TABLES_PATH.open("r", encoding="utf-8") as _fh:
-    _TABLES = json.load(_fh)
+_TABLES_PATH = _resolve_tables_path()
+with _TABLES_PATH.open("rb") as _fh_bytes:
+    _RAW_BYTES = _fh_bytes.read()
+_TABLES = json.loads(_RAW_BYTES.decode("utf-8"))
+_TABLES_SHA256 = hashlib.sha256(_RAW_BYTES).hexdigest()
+
+logger.info(
+    "pricing tables loaded from %s (sha256=%s…)",
+    _TABLES_PATH,
+    _TABLES_SHA256[:12],
+)
 
 RATES_PER_M: dict[str, dict[str, float]] = _TABLES["rates_per_m"]
 PRICING_META: dict[str, Any] = {
     "fetched_at": _TABLES.get("_meta", {}).get("fetched_at"),
     "source": _TABLES.get("_meta", {}).get("source"),
+    "path": str(_TABLES_PATH),
+    "sha256": _TABLES_SHA256,
 }
 
 # Matches OpenAI-style date suffix (e.g. ``-2026-04-23``) at end of string.

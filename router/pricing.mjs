@@ -1,7 +1,7 @@
 // Authoritative per-million-token pricing for the cloud models the proxy can
-// route to. Tables live in ../lib/pricing_tables.json so the JS proxy and the
-// Python eval harness (lib/pricing.py) read the exact same numbers — this
-// keeps cost-parity guaranteed by construction.
+// route to. Tables live in ../configs/pricing/pricing_tables.json so the JS
+// proxy and the Python eval harness (src/hybrid_coding_eval/core/pricing.py)
+// read the exact same numbers — cost-parity guaranteed by construction.
 //
 // Cost = (prompt_tokens - cached_tokens) * input
 //      + cached_tokens                   * cache_read
@@ -16,18 +16,59 @@
 // amortisation as free at the margin — the comparison is "what extra would I
 // have paid the cloud provider"). This is documented in the report.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { createHash } from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Resolve the pricing table path:
+//   1. Env override HYBRID_PRICING_TABLE wins.
+//   2. Else walk up from this file until we find pyproject.toml (repo
+//      root marker), then look for configs/pricing/pricing_tables.json.
+//   3. Fall back to legacy lib/pricing_tables.json to avoid a hard
+//      failure during the migration window.
+function resolvePricingTablePath() {
+  const envOverride = process.env.HYBRID_PRICING_TABLE;
+  if (envOverride) return resolve(envOverride);
+
+  let cur = __dirname;
+  // Walk up until we find pyproject.toml — identifies repo root.
+  while (true) {
+    if (existsSync(resolve(cur, "pyproject.toml"))) {
+      const newPath = resolve(cur, "configs", "pricing", "pricing_tables.json");
+      if (existsSync(newPath)) return newPath;
+      const legacy = resolve(cur, "lib", "pricing_tables.json");
+      if (existsSync(legacy)) return legacy;
+      return newPath; // report the expected path so error message is useful
+    }
+    const parent = dirname(cur);
+    if (parent === cur) break;
+    cur = parent;
+  }
+  // Give up — try legacy colocated file.
+  return resolve(__dirname, "..", "lib", "pricing_tables.json");
+}
+
 // Load the shared pricing tables at module import time.
-const _tablesPath = resolve(__dirname, "..", "lib", "pricing_tables.json");
-const _tables = JSON.parse(readFileSync(_tablesPath, "utf8"));
+const _tablesPath = resolvePricingTablePath();
+const _tablesBytes = readFileSync(_tablesPath);
+const _tables = JSON.parse(_tablesBytes.toString("utf8"));
+const _tablesSha = createHash("sha256").update(_tablesBytes).digest("hex");
+
+console.error(
+  `[pricing] loaded ${_tablesPath} (sha256=${_tablesSha.slice(0, 12)}…)`,
+);
 
 export const RATES_PER_M = _tables.rates_per_m;
+export const PRICING_META = {
+  fetched_at: _tables._meta?.fetched_at ?? null,
+  source: _tables._meta?.source ?? null,
+  path: _tablesPath,
+  sha256: _tablesSha,
+};
 
 const FETCHED_AT = _tables._meta?.fetched_at ?? null;
 const SOURCE = _tables._meta?.source ?? null;
@@ -123,5 +164,5 @@ export function fmtTok(n, pad = 0) {
   const s = (n ?? 0).toLocaleString("en-US")
   return pad ? s.padStart(pad) : s
 }
-
-export const PRICING_META = { fetched_at: FETCHED_AT, source: SOURCE }
+// PRICING_META is exported at the top of this file (so the early
+// loader metadata — path, sha256 — is available alongside fetched_at).
