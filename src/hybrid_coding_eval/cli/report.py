@@ -70,10 +70,10 @@ class TaskBundle:
 def _load_tasks_by_id() -> dict[str, tuple[str, Any]]:
     """Return task_id → (source, task)."""
     out: dict[str, tuple[str, Any]] = {}
-    from hybrid_coding_eval.benchmarks.humaneval_plus.adapter import load_tasks as hep
-    from hybrid_coding_eval.benchmarks.swebench_verified.adapter import load_tasks as swe
     from hybrid_coding_eval.benchmarks.bigcodebench_hard.adapter import load_tasks as bch
     from hybrid_coding_eval.benchmarks.custom_arch.adapter import load_tasks as ca
+    from hybrid_coding_eval.benchmarks.humaneval_plus.adapter import load_tasks as hep
+    from hybrid_coding_eval.benchmarks.swebench_verified.adapter import load_tasks as swe
 
     for loader, source in [
         (lambda: hep(n=10), "humaneval_plus"),

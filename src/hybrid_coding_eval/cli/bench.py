@@ -24,7 +24,6 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any
 
 from hybrid_coding_eval.core.config.loader import dump_schema_json, load_config
 from hybrid_coding_eval.core.config.resolve import apply_overrides
@@ -67,12 +66,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     # Import lazily: the orchestrator has heavy transitive deps (pandas,
     # docker) that ``bench show-config`` should not have to pay for.
-    from hybrid_coding_eval.core.experiment import run_pair as _run_pair  # noqa: F401
-
     # Delegate to the existing CLI main() in cli.run. It accepts argv;
     # we translate the config back into its flag shape until T-08 lets
     # run_pair() take a BenchConfig directly.
     from hybrid_coding_eval.cli.run import main as run_main
+    from hybrid_coding_eval.core.experiment import run_pair as _run_pair  # noqa: F401
 
     argv: list[str] = [
         "--out",

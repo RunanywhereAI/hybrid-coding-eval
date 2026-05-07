@@ -34,7 +34,6 @@ from hybrid_coding_eval.core.metrics import ResultRow
 from hybrid_coding_eval.core.paths import repo_root
 from hybrid_coding_eval.core.results import load_results
 
-
 # --------------------------------------------------------------------------- #
 # Wilson score interval for a proportion — ``k`` hits out of ``n`` trials.
 # --------------------------------------------------------------------------- #

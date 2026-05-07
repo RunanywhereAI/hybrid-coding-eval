@@ -18,7 +18,6 @@ import csv
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable
 
 from hybrid_coding_eval.analysis.cost_scenarios import (
     PRICING_SCENARIOS,

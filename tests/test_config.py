@@ -12,7 +12,6 @@ from hybrid_coding_eval.core.config.loader import (
     load_config,
 )
 from hybrid_coding_eval.core.config.resolve import apply_overrides
-from hybrid_coding_eval.core.config.schema import BenchConfig
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _VARIANTS = _REPO_ROOT / "configs" / "variants"

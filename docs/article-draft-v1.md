@@ -1,8 +1,14 @@
 # [v1 DRAFT] Hybrid local/cloud routing for coding agents: the data says don't bother (yet)
 
-> ⚠️ **v1 draft — superseded by the v2 numbers.** The main body below tells the v1 story; the postscript at the
-> bottom reflects the v2 correction. The canonical, clean-slate report is [`results/final/REPORT.md`](../results/final/REPORT.md).
-> Keep reading only if you want the narrative arc; use `results/final/REPORT.md` for the current claims.
+> ⚠️ **Superseded twice — first by the v2 postscript (inline below), now by the v3 canonical
+> article.** The canonical publication is [`reports/ARTICLE.md`](../reports/ARTICLE.md) which
+> presents the same data under a multi-scenario decision matrix with Wilson 95% CIs and
+> includes the new R4-on-Cat-A + R4-on-Cat-C sweeps. This file is kept for lineage only.
+>
+> **Read order for the current claims:** 1) `reports/ARTICLE.md` · 2) `reports/APPENDIX_TASKS.md`
+> (every row's prompt + output + score) · 3) `reports/APPENDIX_SCENARIOS.md` · 4)
+> `reports/APPENDIX_ROUTES.md`. The MVP `results/REPORT.md` is preserved verbatim at
+> `results/REPORT_v1_mvp.md`.
 
 
 We built a hybrid local/cloud routing system for coding agents. Ran it on 30 public-benchmark and hand-curated tasks spanning tiny-function-completion (HumanEval+), real software engineering (SWE-bench Verified), and architecture/reasoning (BigCodeBench-Hard + 5 hand-curated design tasks). **On every category, the hybrid route was Pareto-dominated by plain cloud-only and plain local-only.** It's slower, more expensive, and it introduces quality regressions that neither of its constituent parts have — including on the one category the hybrid pipeline was explicitly designed to win (SWE-bench).

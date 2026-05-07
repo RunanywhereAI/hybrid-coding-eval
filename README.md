@@ -3,13 +3,17 @@
 > *A benchmark + harness that answers, with reproducible numbers, the question:*
 > ***For my coding task and my hardware — should I run it local, hybrid, or cloud?***
 
-**Status: MVP complete.** 30 tasks × 4 routes × 2 local-model variants = 180 graded runs, on one M4 Max laptop.
+**Status: mono-repo reorg complete.** 200 graded rows across 4 routes, 6 benchmarks-worth of re-priceable scenarios, on one M4 Max laptop. MVP 180 rows + Wave 2 R4-on-Cat-A (10) + R4-on-Cat-C (10) + triple-judge audit (30 verdicts).
 
 ## 👉 Start here
 
-- **[`results/REPORT.md`](./results/REPORT.md) — the single canonical report. Read this.**
-- [`results/raw.jsonl`](./results/raw.jsonl) — the merged 180-row dataset with variant tags.
-- [`results/runs/`](./results/runs/) — four per-variant sub-directories, each with its own `run-notes.md`, `raw.jsonl`, outputs, progress logs, env manifest. Preserved as-is for transparency.
+- **[`reports/ARTICLE.md`](./reports/ARTICLE.md) — the canonical article. Read this.**
+- [`reports/APPENDIX_TASKS.md`](./reports/APPENDIX_TASKS.md) — every `(task, route, variant)` row verbatim: problem, prompt, output, score, judge reasoning.
+- [`reports/APPENDIX_SCENARIOS.md`](./reports/APPENDIX_SCENARIOS.md) — multi-scenario decision matrix + $/correct under every pricing tier.
+- [`reports/APPENDIX_ROUTES.md`](./reports/APPENDIX_ROUTES.md) — worked example per R1/R2/R3/R4 with full trace.
+- [`results/raw.jsonl`](./results/raw.jsonl) — the merged dataset.
+- [`results/REPORT_v1_mvp.md`](./results/REPORT_v1_mvp.md) — the MVP report (preserved, frozen).
+- [`results/runs/`](./results/runs/) — per-variant subdirectories: run-notes, raw.jsonl, outputs, minion_logs, env-manifest. Preserved as-is.
 
 ## What the four routes are
 
@@ -30,7 +34,7 @@
 | B — SWE-bench Verified (10) | 3/10 | **R4 Minion 4/10** at $0.083/task vs R1 $0.126 | **R4** |
 | C — architecture/reasoning (10) | ties R3 | R3 ties R1 on judge, wins ARQGC | R3 ≈ R1 |
 
-**Hybrid routing is not categorically worse than cloud-only.** An earlier v1 draft claimed it was; that conclusion was load-bearing on a runner bug (synth-budget exhaustion on reasoning models) and a weak local model on SWE-bench. Fix both, try Stanford's Minion pattern, and hybrid reaches parity on every category and wins outright on SWE-bench. Full story in [`results/REPORT.md`](./results/REPORT.md).
+**Hybrid routing is not categorically worse than cloud-only.** An earlier v1 draft claimed it was; that conclusion was load-bearing on a runner bug (synth-budget exhaustion on reasoning models) and a weak local model on SWE-bench. Fix both, try Stanford's Minion pattern, and hybrid reaches parity on every category and wins outright on SWE-bench. Full story in [`reports/ARTICLE.md`](./reports/ARTICLE.md); MVP report preserved at [`results/REPORT_v1_mvp.md`](./results/REPORT_v1_mvp.md).
 
 ## Repo layout
 
@@ -106,16 +110,20 @@ Full instructions in [`docs/REPRODUCING.md`](./docs/REPRODUCING.md). Wall ~5h on
 
 ## Where to read next
 
-1. **[`results/REPORT.md`](./results/REPORT.md)** — the single canonical report. (Seriously, read this first.)
-2. [`results/runs/README.md`](./results/runs/README.md) — index of the four experimental runs.
-3. Any individual run's `run-notes.md` (or v1 `REPORT.md`) under `results/runs/NN-*/`.
-4. [`docs/METHODOLOGY.md`](./docs/METHODOLOGY.md) — how the eval works, biases acknowledged.
-5. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — copy-paste reproduction on a fresh machine.
-6. [`docs/ROUTING_STRATEGIES.md`](./docs/ROUTING_STRATEGIES.md) — deep-dive on each route.
-7. [`docs/PRIOR_ART.md`](./docs/PRIOR_ART.md) — May 2026 research synthesis (benchmarks, local-model perf, hybrid architectures).
-8. [`docs/PLAN.md`](./docs/PLAN.md) — the original multi-phase project plan (planning artifact, not findings).
-9. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — code layout + data flow.
-10. [`docs/article-draft-v1.md`](./docs/article-draft-v1.md) — long-form article. Body tells the v1 story; postscript has the v2 correction. Authoritative numbers are in `results/REPORT.md`.
+1. **[`reports/ARTICLE.md`](./reports/ARTICLE.md)** — the canonical article. Read this first.
+2. [`reports/APPENDIX_TASKS.md`](./reports/APPENDIX_TASKS.md) — forensic record: every task × route × variant with its problem, prompt, output, score.
+3. [`reports/APPENDIX_SCENARIOS.md`](./reports/APPENDIX_SCENARIOS.md) — multi-scenario decision matrix.
+4. [`reports/APPENDIX_ROUTES.md`](./reports/APPENDIX_ROUTES.md) — worked examples per R1/R2/R3/R4.
+5. [`examples/drop-in-a-new-model.md`](./examples/drop-in-a-new-model.md) — 5-step walkthrough for benchmarking a new model.
+6. [`results/REPORT_v1_mvp.md`](./results/REPORT_v1_mvp.md) — the MVP report, preserved verbatim.
+7. [`results/runs/README.md`](./results/runs/README.md) — index of the experimental runs.
+8. [`docs/METHODOLOGY.md`](./docs/METHODOLOGY.md) — how the eval works, biases acknowledged.
+9. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — copy-paste reproduction on a fresh machine.
+10. [`docs/ROUTING_STRATEGIES.md`](./docs/ROUTING_STRATEGIES.md) — deep-dive on each route.
+11. [`docs/PRIOR_ART.md`](./docs/PRIOR_ART.md) — research synthesis.
+12. [`docs/article-draft-v1.md`](./docs/article-draft-v1.md) — v1 narrative (superseded).
+13. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — code layout + data flow.
+14. [`docs/PLAN.md`](./docs/PLAN.md), [`docs/FINAL_REPORT_PLAN.md`](./docs/FINAL_REPORT_PLAN.md), `docs/T-12-deferred.md`, `docs/T-13-analysis.md`, `docs/audits/T-21-publish-readiness.md` — planning artefacts.
 
 ## License and attribution
 
