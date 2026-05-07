@@ -22,11 +22,22 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_here = Path(__file__).resolve()
+for _p in (_here, *_here.parents):
+    if (_p / "pyproject.toml").is_file():
+        _REPO_ROOT = _p
+        break
+else:  # pragma: no cover
+    _REPO_ROOT = _here.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+# Also add src/ so ``hybrid_coding_eval`` is importable when run as a
+# script without ``pip install -e .``.
+_SRC = _REPO_ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
-from lib.experiment import (  # noqa: E402
+from hybrid_coding_eval.core.experiment import (  # noqa: E402
     CATEGORY_SOURCES,
     ROUTES,
     TaskPlan,

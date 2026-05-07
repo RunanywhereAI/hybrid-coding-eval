@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Re-judge custom-arch rows with Claude Opus 4.7 (bias-clean cross-vendor).
+"""Run pairwise LLM-judge on custom-arch rows.
 
-Variant of ``bin/judge-custom-arch.py`` that hardcodes the judge model
-to ``claude-opus-4-7`` and requires ``ANTHROPIC_API_KEY`` — no silent
-fallback to gpt-5. Outputs to ``judge.jsonl`` (overwriting any prior
-verdicts) and updates the ``quality`` field on custom-arch rows in
-``raw.jsonl`` in place.
+For each custom-arch task there are 3 routes (R1, R2, R3). We run three
+pairwise comparisons per task (R1-vs-R2, R1-vs-R3, R2-vs-R3), then
+aggregate into per-route quality using a simple Bradley-Terry-style
+average (win-rate across the pairs a route appears in).
+
+Outputs:
+- writes the aggregated `quality` back into each row of raw.jsonl
+- appends per-pairing judgments to `results/<dir>/judge.jsonl`
 
 Usage:
-    ./bin/rejudge-custom-arch.py results/full-sweep-v2
+    ./bin/judge-custom-arch.py results/full-sweep
 """
 
 from __future__ import annotations
@@ -16,13 +19,21 @@ from __future__ import annotations
 import json
 import os
 import sys
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-HERE = Path(__file__).resolve().parent.parent
+_here = Path(__file__).resolve()
+for _p in (_here, *_here.parents):
+    if (_p / 'pyproject.toml').is_file():
+        HERE = _p
+        break
+else:  # pragma: no cover
+    HERE = _here.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / 'src'))
 
-# Load repo-root .env so ANTHROPIC_API_KEY is populated before the scorer runs.
+# Load .env for ANTHROPIC_API_KEY before importing scorer.
 _env = HERE / ".env"
 if _env.is_file():
     for line in _env.read_text(encoding="utf-8").splitlines():
@@ -35,17 +46,10 @@ if _env.is_file():
         if k and k not in os.environ:
             os.environ[k] = v
 
-if "ANTHROPIC_API_KEY" not in os.environ:
-    print("ERROR: ANTHROPIC_API_KEY not set. This script requires the real "
-          "cross-vendor judge; it does not fall back to gpt-5.", file=sys.stderr)
-    sys.exit(2)
-
 from benchmark.custom_arch import adapter as custom_arch_adapter  # noqa: E402
-from lib.experiment import _read_output_text  # noqa: E402
-from lib.metrics import Quality, ResultRow, TokenUsage, Latency, Routing  # noqa: E402
+from hybrid_coding_eval.core.experiment import _read_output_text  # noqa: E402
+from hybrid_coding_eval.core.metrics import Quality, ResultRow, TokenUsage, Latency, Routing  # noqa: E402
 from scorers import llm_judge  # noqa: E402
-
-JUDGE_MODEL = "claude-opus-4-7"
 
 
 def _row_from_dict(d: dict) -> ResultRow:
@@ -71,6 +75,7 @@ def main(results_dir: Path) -> None:
         sys.exit(1)
 
     tasks = {t.id: t for t in custom_arch_adapter.load_tasks()}
+
     rows = [json.loads(l) for l in raw.open()]
     by_task: dict[str, dict[str, dict]] = {}
     for r in rows:
@@ -83,13 +88,16 @@ def main(results_dir: Path) -> None:
 
     pairs = [("R1", "R2"), ("R1", "R3"), ("R2", "R3")]
     judge_records: list[dict[str, Any]] = []
+
+    # per (task_id, route) → list of (win_rate 0..1, composite 0..1)
     accum: dict[tuple[str, str], list[tuple[float, float]]] = {}
+    # empty-output rows get auto-assigned composite=0, win_rate=0 (loss)
     empty_rows: set[tuple[str, str]] = set()
 
     for tid, routes in by_task.items():
         task = tasks.get(tid)
         if not task:
-            print(f"[rejudge] task {tid} not found, skip")
+            print(f"[judge] task {tid} not in 5-sample, skip")
             continue
         for a, b in pairs:
             row_a = routes.get(a)
@@ -101,7 +109,7 @@ def main(results_dir: Path) -> None:
             a_empty = not out_a.strip()
             b_empty = not out_b.strip()
             if a_empty and b_empty:
-                print(f"[rejudge] {tid} {a} vs {b}: BOTH empty — tie (0)")
+                print(f"[judge] {tid} {a} vs {b}: BOTH empty — tie (both score 0)")
                 empty_rows.add((tid, a))
                 empty_rows.add((tid, b))
                 judge_records.append({
@@ -109,25 +117,25 @@ def main(results_dir: Path) -> None:
                     "route_a": a, "route_b": b,
                     "winner": "tie", "margin": 0.0,
                     "a_score": 0.0, "b_score": 0.0,
-                    "reasoning": "both outputs empty",
+                    "reasoning": "both outputs empty (synth-budget exhaustion)",
                     "judge_model": "auto-empty",
                 })
                 continue
             if a_empty:
-                print(f"[rejudge] {tid} {a} vs {b}: {a} empty, auto-B wins")
+                print(f"[judge] {tid} {a} vs {b}: {a} empty, auto-B wins")
                 empty_rows.add((tid, a))
-                accum.setdefault((tid, b), []).append((1.0, 0.5))
+                accum.setdefault((tid, b), []).append((1.0, 0.5))  # b wins; score unknown, pick mid
                 judge_records.append({
                     "task_id": tid, "pair": f"{a}_vs_{b}",
                     "route_a": a, "route_b": b,
                     "winner": "B", "margin": 1.0,
                     "a_score": 0.0, "b_score": 3.0,
-                    "reasoning": f"{a} empty; {b} has content",
+                    "reasoning": f"{a} produced empty output (synth-budget exhaustion); {b} has content",
                     "judge_model": "auto-empty",
                 })
                 continue
             if b_empty:
-                print(f"[rejudge] {tid} {a} vs {b}: {b} empty, auto-A wins")
+                print(f"[judge] {tid} {a} vs {b}: {b} empty, auto-A wins")
                 empty_rows.add((tid, b))
                 accum.setdefault((tid, a), []).append((1.0, 0.5))
                 judge_records.append({
@@ -135,15 +143,17 @@ def main(results_dir: Path) -> None:
                     "route_a": a, "route_b": b,
                     "winner": "A", "margin": 1.0,
                     "a_score": 3.0, "b_score": 0.0,
-                    "reasoning": f"{a} has content; {b} empty",
+                    "reasoning": f"{a} has content; {b} produced empty output (synth-budget exhaustion)",
                     "judge_model": "auto-empty",
                 })
                 continue
-            print(f"[rejudge] {tid}: {a} vs {b} (Opus) ...", flush=True)
+            print(f"[judge] {tid}: {a} vs {b} ...", flush=True)
+            # Pick judge model: prefer claude-opus-4-7 if ANTHROPIC key is
+            # set, otherwise fall back to gpt-5 (same-family judge — we
+            # flag this caveat in the report).
+            judge_model = "claude-opus-4-7" if os.environ.get("ANTHROPIC_API_KEY") else "gpt-5"
             try:
-                result = llm_judge.judge_pairwise(
-                    task, out_a, out_b, judge_model=JUDGE_MODEL, max_tokens=4000,
-                )
+                result = llm_judge.judge_pairwise(task, out_a, out_b, judge_model=judge_model, max_tokens=4000)
             except Exception as exc:  # noqa: BLE001
                 print(f"  error: {exc!r}")
                 continue
@@ -156,8 +166,10 @@ def main(results_dir: Path) -> None:
             accum.setdefault((tid, a), []).append((q_a.judge_win_rate, q_a.composite))
             accum.setdefault((tid, b), []).append((q_b.judge_win_rate, q_b.composite))
             judge_records.append({
-                "task_id": tid, "pair": f"{a}_vs_{b}",
-                "route_a": a, "route_b": b,
+                "task_id": tid,
+                "pair": f"{a}_vs_{b}",
+                "route_a": a,
+                "route_b": b,
                 "winner": result.winner,
                 "margin": result.margin,
                 "a_score": result.a_score,
@@ -168,12 +180,13 @@ def main(results_dir: Path) -> None:
                 "judge_model": result.judge_model,
             })
 
+    # Write judge log
     with judge_log.open("w") as f:
         for rec in judge_records:
             f.write(json.dumps(rec) + "\n")
-    print(f"[rejudge] wrote {len(judge_records)} pairings to {judge_log}")
+    print(f"[judge] wrote {len(judge_records)} pairings to {judge_log}")
 
-    # Update custom-arch rows
+    # Update rows: aggregate per-route quality
     updated = 0
     for r in rows:
         tid = r["task_id"]
@@ -182,6 +195,7 @@ def main(results_dir: Path) -> None:
         key = (tid, r["route"])
         samples = accum.get(key, [])
         if key in empty_rows and not samples:
+            # Empty-output row with no successful judgments anywhere: hard zero.
             r["quality"] = {
                 "functional_pass": False,
                 "tests_passed": 0,
@@ -195,6 +209,7 @@ def main(results_dir: Path) -> None:
             continue
         win_rate = sum(s[0] for s in samples) / len(samples)
         composite = sum(s[1] for s in samples) / len(samples)
+        # If this route has any empty output on this task, force composite floor.
         if key in empty_rows:
             composite = 0.0
             win_rate = 0.0
@@ -212,9 +227,15 @@ def main(results_dir: Path) -> None:
         for r in rows:
             f.write(json.dumps(r) + "\n")
     tmp.replace(raw)
-    print(f"[rejudge] updated {updated} rows in {raw}")
+    print(f"[judge] updated {updated} rows")
+
+
+def cli_main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    results_dir = Path(argv[0]) if argv else Path("results/full-sweep")
+    main(results_dir)
+    return 0
 
 
 if __name__ == "__main__":
-    results_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("results/full-sweep-v2")
-    main(results_dir)
+    raise SystemExit(cli_main())

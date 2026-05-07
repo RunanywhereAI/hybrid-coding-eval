@@ -14,12 +14,19 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent.parent
+_here = Path(__file__).resolve()
+for _p in (_here, *_here.parents):
+    if (_p / 'pyproject.toml').is_file():
+        HERE = _p
+        break
+else:  # pragma: no cover
+    HERE = _here.parent.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / 'src'))
 
 from benchmark.swebench_verified import adapter as swebench_adapter  # noqa: E402
-from lib.experiment import _read_output_text  # noqa: E402
-from lib.metrics import ResultRow, TokenUsage, Latency, Quality, Routing  # noqa: E402
+from hybrid_coding_eval.core.experiment import _read_output_text  # noqa: E402
+from hybrid_coding_eval.core.metrics import ResultRow, TokenUsage, Latency, Quality, Routing  # noqa: E402
 from scorers import swebench as swebench_scorer  # noqa: E402
 
 
@@ -89,6 +96,12 @@ def main(results_dir: Path) -> None:
     print(f"[rescore] updated {updated} rows; wrote {raw}")
 
 
-if __name__ == "__main__":
-    results_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("results/full-sweep")
+def cli_main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    results_dir = Path(argv[0]) if argv else Path("results/full-sweep")
     main(results_dir)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli_main())
