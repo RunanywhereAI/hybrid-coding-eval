@@ -163,7 +163,7 @@ def _render_md(data: dict[str, Any]) -> str:
     lines.append("")
 
     categories = ["A", "B", "C"]
-    routes = ["R1", "R2", "R3", "R4"]
+    routes = ["R1", "R2", "R3", "R4", "R5"]
 
     for scen, grid in data["matrix"].items():
         lines.append(f"## Scenario: `{scen}`")

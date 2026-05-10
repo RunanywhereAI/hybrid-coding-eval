@@ -114,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     src_outputs = src_dir / "outputs"
 
     def _route_output_path(base: Path, tid: str, route: str) -> Path | None:
-        """R3 outputs use .r3.answer.txt; R1/R2/R4 use _R<n>.txt."""
+        """R3 outputs use .r3.answer.txt; R1/R2/R4/R5 use _R<n>.txt."""
         slug = tid.replace("/", "__")
         if route == "R3":
             p = base / f"{slug}.r3.answer.txt"

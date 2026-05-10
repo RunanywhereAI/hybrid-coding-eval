@@ -46,7 +46,8 @@ _ROUTE_COLORS = {
     "R1": "#d62728",  # red — cloud-only
     "R2": "#2ca02c",  # green — local-only
     "R3": "#1f77b4",  # blue — hybrid-architect
-    "R4": "#9467bd",  # purple — reserved
+    "R4": "#9467bd",  # purple — Minion
+    "R5": "#ff7f0e",  # orange — DevMinion (architect/editor review loop)
 }
 _CATEGORY_MARKERS = {
     "A": "o",  # small/functional

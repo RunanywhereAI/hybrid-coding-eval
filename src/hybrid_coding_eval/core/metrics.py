@@ -59,7 +59,7 @@ class Routing:
 class ResultRow:
     task_id: str
     category: str  # 'A' | 'B' | 'C'
-    route: str  # 'R1' | 'R2' | 'R3' | 'R4'
+    route: str  # 'R1' | 'R2' | 'R3' | 'R4' | 'R5'
     hardware_profile_ref: str
     tokens: TokenUsage
     latency: Latency
