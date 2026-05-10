@@ -1,0 +1,14 @@
+diff --git a/src/werkzeug/datastructures/auth.py b/src/werkzeug/datastructures/auth.py
+index 42f7aa4..0a3141e 100644
+--- a/src/werkzeug/datastructures/auth.py
++++ b/src/werkzeug/datastructures/auth.py
+@@ -295,6 +295,9 @@ class WWWAuthenticate:
+         if self.token is not None:
+             return f"{self.type.title()} {self.token}"
+ 
++        if not self.parameters:
++            return self.type.title()
++
+         if self.type == "digest":
+             items = []
+ 
