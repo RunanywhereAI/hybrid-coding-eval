@@ -306,7 +306,7 @@ Every limit one of: (a) hardware/data inherited from the v3 sweep, (b) deferred 
 - `results/runs/11-judge-robust-D/judge.jsonl` — 96 triple-judge verdicts for D3+D4 robustness audit.
 - `results/runs/11-judge-robust-D/run-notes.md` — robustness audit write-up.
 - `results/REPORT_v1_mvp.md` — the MVP report from run 04, preserved verbatim for lineage. Read alongside §4.2 of this article for the v1 → v3 SWE-bench reversal.
-- `docs/article-draft-v1.md` — v1 and v2 narratives, preserved for lineage.
+- `archive/docs/article-draft-v1.md` — v1 and v2 narratives, preserved for lineage.
 - `docs/METHODOLOGY.md` — how the eval works, end-to-end.
 - `docs/REPRODUCING.md` — how to reproduce a run.
 

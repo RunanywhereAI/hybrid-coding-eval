@@ -1,4 +1,4 @@
-"""Tests for ``bin/env-detect.py``.
+"""Tests for ``hybrid_coding_eval.cli.env_detect``.
 
 Covers:
 
@@ -13,28 +13,11 @@ Covers:
 
 from __future__ import annotations
 
-import importlib.util
 import json
-import sys
 from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = REPO_ROOT / "bin" / "env-detect.py"
-
-
-def _load_module():
-    """Import bin/env-detect.py as a module (hyphen in filename blocks normal import)."""
-    spec = importlib.util.spec_from_file_location("env_detect", SCRIPT)
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["env_detect"] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-ED = _load_module()
-
+from hybrid_coding_eval.cli import env_detect as ED
 
 # ---------------------------------------------------------------------------
 # Expected schema

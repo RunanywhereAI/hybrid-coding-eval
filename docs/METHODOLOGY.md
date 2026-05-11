@@ -206,7 +206,7 @@ score in an overnight window.
 
 `scorers/llm_judge.py` — bias-corrected pairwise judge, adapted from
 MT-Bench's rubric (we vendor the reference code at
-`EXTERNAL/lm-eval-harness-judge/` but do not import it; we reimplement
+`vendor/lm-eval-harness-judge/` but do not import it; we reimplement
 so the rubric can be per-task).
 
 | design decision | rationale |

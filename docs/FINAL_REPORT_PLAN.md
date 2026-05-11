@@ -274,7 +274,7 @@ article + publishing-readiness polish.
 
 #### T-13 · Article postscript update
 - **Agent.** `general-purpose`
-- **Inputs.** `docs/article-draft-v1.md`, `results/FINAL_REPORT.md`.
+- **Inputs.** `archive/docs/article-draft-v1.md`, `results/FINAL_REPORT.md`.
 - **Outputs.** A second postscript section at the end of the article
   pulling from FINAL_REPORT. Body stays unchanged (it's a narrative
   artifact).

@@ -7,10 +7,13 @@ fails, the fix is in [§9 Troubleshooting](#9-troubleshooting).
 See [`METHODOLOGY.md`](./METHODOLOGY.md) for *why* we chose these tasks,
 routes, and scoring pipelines. This document is the *how*.
 
-> **Post-mono-repo-reorg.** The canonical way to run a sweep is now
-> `./bench run --config configs/variants/<name>.yaml`. Legacy
-> `./bin/run-experiment.py ...` shims still work — see `CLAUDE.md` for the
-> full `bench` CLI.
+> **Note (2026-05-11).** This document was written for the MVP (3 routes
+> R1-R3, categories A/B/C, 90 rows). The v3 sweep introduced R4, R5, and
+> category D — see [`configs/variants/07-v3-devstral-all-routes.yaml`](../configs/variants/07-v3-devstral-all-routes.yaml)
+> for the canonical 5-route config and [`reports/FINAL_V3_REPORT.md`](../reports/FINAL_V3_REPORT.md)
+> for the current methodology. The reproduction steps below remain valid
+> for the MVP; the only commands that changed are the orchestrator
+> invocations (`./bench run …` replaces the old `bin/run-experiment.py`).
 
 ---
 
@@ -97,10 +100,10 @@ echo 'OPEN_AI_API_KEY=sk-...' > .env
 curl -s http://127.0.0.1:8787/healthz | jq .
 
 # 7. Run a 9-row smoke (1 task × 3 categories × 3 routes, ~30 min)
-.venv/bin/python bin/run-experiment.py --smoke --out results/smoke-$(date +%s)
+./bench run --config configs/variants/_template.yaml --smoke
 
 # 8. Analyse
-.venv/bin/python -m analysis.all results/smoke-*
+./bench analyze results/runs/<variant_tag>/
 ```
 
 ---
@@ -220,26 +223,25 @@ jq '.cpu, .memory_gb, .python_version, .ollama.version' env-manifest.json
 
 ## 4. Running the experiment
 
-The orchestrator is `bin/run-experiment.py`. All flags:
+The orchestrator is `./bench run`. All flags:
 
 ```bash
-.venv/bin/python bin/run-experiment.py --help
+./bench run --help
 ```
 
 ### 4.1 Smoke test (9 rows, ~30 min)
 
 ```bash
-.venv/bin/python bin/run-experiment.py --smoke
+./bench run --config configs/variants/_template.yaml --smoke
 ```
 
 One task per category × three routes. Output lands in
-`results/<timestamp>_<host>/`.
+`results/runs/<variant_tag>/`.
 
 ### 4.2 Full sweep (90 rows, ~2–4 h)
 
 ```bash
-.venv/bin/python bin/run-experiment.py \
-  --out results/full-$(date +%Y%m%d)
+./bench run --config configs/variants/_template.yaml
 ```
 
 Each row is flushed to `raw.jsonl` as soon as it completes — you can tail
@@ -253,8 +255,7 @@ wc -l results/full-*/raw.jsonl
 ### 4.3 Resume a crashed sweep
 
 ```bash
-.venv/bin/python bin/run-experiment.py \
-  --out results/full-20260505 --resume
+./bench run --config configs/variants/_template.yaml --resume
 ```
 
 Already-completed `(task_id, route)` pairs are skipped.
@@ -262,14 +263,14 @@ Already-completed `(task_id, route)` pairs are skipped.
 ### 4.4 Subset a sweep
 
 ```bash
-# Only R1 + R2 on categories A and B (no SWE-bench, no hybrid)
-.venv/bin/python bin/run-experiment.py --routes R1,R2 --categories A,B
+# Override variant fields on the CLI rather than editing the YAML
+./bench run --config configs/variants/_template.yaml --set routes='[R1,R2]' --set categories='[A,B]'
 
-# Cap to 3 tasks per category, useful for pre-flight testing
-.venv/bin/python bin/run-experiment.py --tasks 3
+# Smoke mode caps each category to 1 task
+./bench run --config configs/variants/_template.yaml --smoke
 
 # See the plan without executing
-.venv/bin/python bin/run-experiment.py --dry-run
+./bench run --config configs/variants/_template.yaml --dry-run
 ```
 
 ---

@@ -178,7 +178,7 @@ The **30–60 % reduction is the credible production range** (cited from multipl
 
 ### 3d. Stanford Minions / DevMinion specifics worth integrating
 
-- **DevMinion** is the coding-specific variant in `EXTERNAL/minions/minions/minion_code.py`. Distinct from generic Minion — has dedicated prompts: `RUNBOOK_GENERATION_PROMPT` (planner), `SUBTASK_EXECUTION_PROMPT` (executor), `CODE_REVIEW_PROMPT` (review), `EDIT_REQUEST_PROMPT` (iterative fix), `FINAL_INTEGRATION_PROMPT` (synth). The review+fix loop is something we don't have.
+- **DevMinion** is the coding-specific variant in `vendor/minions/minions/minion_code.py`. Distinct from generic Minion — has dedicated prompts: `RUNBOOK_GENERATION_PROMPT` (planner), `SUBTASK_EXECUTION_PROMPT` (executor), `CODE_REVIEW_PROMPT` (review), `EDIT_REQUEST_PROMPT` (iterative fix), `FINAL_INTEGRATION_PROMPT` (synth). The review+fix loop is something we don't have.
 - **Minion (singular)** uses a stateful Q&A pattern: cloud asks targeted questions, local reads context and answers, cloud never sees raw context. Reduces synth replay tax — relevant to our **R4 hybrid-minion** route.
 - The `minion_arch.py` variant uses an **Arch Router** (the 1.5 B Katanemo router model) for client selection — same lineage as our `llm-classifier` strategy but with a real routing-trained model.
 
@@ -282,7 +282,7 @@ Concrete updates to fold into PLAN.md (will do separately):
 
 2. **Scoring (§5 of PLAN.md)** — adopt **Bounded-ARQGC** (from IPRBench) as the headline aggregate metric on top of per-task scores. Standardised, peer-reviewed, exactly what we want.
 
-3. **R4 hybrid-minion** route — implement the **Minion (singular) Q&A pattern** from `EXTERNAL/minions/minions/minion.py`, not the parallel-batch `Minions` variant. Cleaner protocol. Borrow `RUNBOOK_GENERATION` + `EDIT_REQUEST` from DevMinion as a 5th route.
+3. **R4 hybrid-minion** route — implement the **Minion (singular) Q&A pattern** from `vendor/minions/minions/minion.py`, not the parallel-batch `Minions` variant. Cleaner protocol. Borrow `RUNBOOK_GENERATION` + `EDIT_REQUEST` from DevMinion as a 5th route.
 
 4. **Add a 5th route: R5 local-with-cloud-review** — use Aider's architect/editor pattern: local writes code, cloud reviews and requests fixes. The single most-deployed real hybrid pattern. Ours doesn't currently test this.
 

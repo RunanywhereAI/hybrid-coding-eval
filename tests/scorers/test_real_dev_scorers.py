@@ -18,7 +18,6 @@ once the image is present.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -39,7 +38,6 @@ from hybrid_coding_eval.benchmarks.real_dev.scorers import (  # noqa: E402
 )
 from hybrid_coding_eval.core.metrics import Quality  # noqa: E402
 from hybrid_coding_eval.scorers.llm_judge import JudgmentResult  # noqa: E402
-
 
 # --------------------------------------------------------------------------- #
 # Docker availability guards (copied pattern from test_functional_python.py)

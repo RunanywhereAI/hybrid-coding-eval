@@ -77,14 +77,14 @@ sys.path.insert(0, str(_MINIONS_DIR))
 # et al. in ``sys.modules``. We piggy-back on that bootstrap so R5 doesn't
 # duplicate the work and so we don't double-patch a module shared with R4.
 # ---------------------------------------------------------------------------
-from hybrid_coding_eval.runners import r4_minion as _r4  # noqa: E402, F401
-
 # Now that ``minions.clients`` is populated with the stub classes plus
 # ``OpenAIClient``, and ``minions.usage`` / ``minions.clients.openai`` /
 # ``minions.clients.base`` are in ``sys.modules``, we can import the
 # DevMinion module. Like ``minions.minion``, the ``minion_code`` module
 # has its own ``_extract_json`` that we need to patch too.
 import importlib.util as _iu  # noqa: E402
+
+from hybrid_coding_eval.runners import r4_minion as _r4  # noqa: E402, F401
 
 _DEV_MODNAME = "minions.minion_code"
 if _DEV_MODNAME not in sys.modules:
@@ -104,8 +104,8 @@ _minion_code_mod = sys.modules[_DEV_MODNAME]
 _minion_code_mod._extract_json = _r4._resilient_extract_json
 _minion_code_mod.json = _r4._minion_mod.json
 
-from minions.minion_code import DevMinion  # noqa: E402
 from minions.clients.openai import OpenAIClient  # noqa: E402
+from minions.minion_code import DevMinion  # noqa: E402
 
 from hybrid_coding_eval.core.metrics import (  # noqa: E402
     Latency,

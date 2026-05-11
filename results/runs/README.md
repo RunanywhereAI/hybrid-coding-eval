@@ -13,11 +13,8 @@ Each subdirectory here is one complete, self-contained run. They're numbered in 
 | 01 | `01-v1-qwen-original/` | 2026-05-05 | 90 rows, all 30 tasks × R1, R2, R3, qwen local, gpt-5 judge | **The v1 sweep.** Reported "R3 is Pareto-dominated on every category." Later invalidated — driven by a synth-budget bug + weak local model on SWE-bench. |
 | 02 | `02-v2-qwen-fixed-synth/` | 2026-05-05 | 20 rows, category C × R1, R3, qwen local, **Claude Opus 4.7 judge** | **Closed the synth-budget bug.** R1 and R3 no longer produce 0-byte outputs on reasoning-heavy tasks. Opus (cross-vendor) judge rates R3 ≈ R1 on 4/5 custom-arch tasks. |
 | 03 | `03-v2-devstral/` | 2026-05-06 | 60 rows, all 30 tasks × R2, R3, **devstral:24b local** | **Local-model swap test.** R3-devstral hits 3/10 on SWE-bench Verified — matches R1 cloud-only. Also fixes the qwen R3 regressions on HumanEval+. |
-| 04 | `04-r4-minion/` | 2026-05-06 | 10 rows, SWE-bench × R4 (Stanford Minion protocol) | **R4 beats R1 on SWE-bench.** 4/10 pass, cheaper + more accurate than cloud-only. First route to Pareto-improve on R1. |
-| 05 | `05-r4-catA/` | 2026-05-07 | 10 rows, HumanEval+ × R4 | **R4 matches R2 but doesn't beat R1 on tiny tasks.** 9/10 pass — expected shape: Minion's supervisor/worker pattern doesn't help when the local model already solves the task end-to-end. |
-| 06 | `06-r4-catC/` | 2026-05-07 | 10 rows, BigCodeBench-Hard + custom_arch × R4 | **R4 under-performs on BigCodeBench** (1/5, vs R1/R3's 2/5). custom_arch rows produced prose — scored by T-14 triple-judge. |
-| 07 | `07-v3-devstral-all-routes/` | 2026-05-11 | 250 rows, 50 tasks × 5 routes, devstral local, gpt-5.5 cloud, claude-opus-4-7 judge | **The v3 sweep.** First time R5 (DevMinion review-loop) ran on the full grid + category D (real-developer tasks). Hybrid hypothesis refuted: R4 cloud_fraction is 87%, cost ratios R3/R4/R5 = 2.26×/1.91×/5.13× R1. |
-| 10 | `10-judge-robust/` | 2026-05-07 | 30 verdicts × 5 pairings × 3 judges × 2 orders | **MVP custom_arch finding holds up.** 27 ties + 3 B-wins. Two tasks fully unanimous; three had one judge flip under A/B-order reversal but majority stayed tie. |
+| 04 | `04-r4-minion/` | 2026-05-06 | 10 rows, SWE-bench × R4 (Stanford Minion protocol) | **R4 beats R1 on SWE-bench.** 4/10 pass, cheaper + more accurate than cloud-only. First route to Pareto-improve on R1. (Note: did not replicate in v3 — see run 07.) |
+| 07 | `07-v3-devstral-all-routes/` | 2026-05-11 | 250 rows, 50 tasks × 5 routes, devstral local, gpt-5.5 cloud, claude-opus-4-7 judge | **The v3 sweep.** First time R5 (DevMinion review-loop) ran on the full grid + category D (real-developer tasks). Hybrid hypothesis refuted: R4 cloud_fraction is 87%, cost ratios R3/R4/R5 = 2.26×/1.91×/5.13× R1. The run-04 "R4 beats R1 on SWE-bench" headline did not replicate (R1=R3=R4=3/10 on the same Django triple). |
 | 11 | `11-judge-robust-D/` | 2026-05-11 | 96 verdicts: 8 D3+D4 tasks × 2 pairings × 3 judges × 2 orders | **D3/D4 robustness audit.** 16/16 pairings unanimous; 0/16 order-flip. Confirms the v3 finding that R1 dominates on prose categories is judge-and-order-invariant. |
 
 ## What each run directory contains
@@ -48,7 +45,7 @@ runs/NN-*/
 
 ## How runs relate to the merged dataset
 
-`../raw.jsonl` (one level up) is the merge of runs 01–04 (the MVP 180 rows). Runs 05+ are NOT merged into that file — they live only in their own subdir's `raw.jsonl`. Each post-MVP run dir is self-contained. Analysis scripts in `src/hybrid_coding_eval/analysis/` read the MVP merged file PLUS every post-MVP run dir, without double-counting.
+`../raw.jsonl` (one level up) is the merge of runs 01–04 (the MVP 180 rows). Run 07 is NOT merged into that file — it lives only in its own subdir's `raw.jsonl`. Each post-MVP run dir is self-contained. Analysis scripts in `src/hybrid_coding_eval/analysis/` read the MVP merged file PLUS every post-MVP run dir, without double-counting.
 
 | run | variant tag in merged dataset | rows | added to `../raw.jsonl`? |
 |---|---|---:|:-:|
@@ -56,12 +53,9 @@ runs/NN-*/
 | 02 | `v2-qwen-fixed` | 20 | ✅ |
 | 03 | `v2-devstral` | 60 | ✅ |
 | 04 | `r4-minion` | 10 | ✅ |
-| 05 | `r4-catA` | 10 | ❌ (in runs/05-*/ only) |
-| 06 | `r4-catC` | 10 | ❌ (in runs/06-*/ only) |
 | 07 | `v3-devstral` | 250 | ❌ (in `07-v3-devstral-all-routes/` only) |
-| 10 | `judge-robust` | 30 verdicts | ❌ (in runs/10-*/judge.jsonl; not raw.jsonl) |
 | 11 | `judge-robust-D` | 96 verdicts | ❌ (in `11-judge-robust-D/judge.jsonl` only) |
-| **MVP merged rows** | | **200** (180 + 20) |  |
+| **MVP merged rows** | | **180** |  |
 | **v3 sweep rows** | | **250** (run `07-v3-devstral-all-routes/`, self-contained) |  |
 
 ## A note about run 01's REPORT.md
@@ -70,6 +64,6 @@ runs/NN-*/
 
 - It records what we thought at the end of the v1 sweep.
 - Its §12 addendum documents the caveats and forecasted where v2 would change things — which is exactly what happened.
-- Deleting it erases the reasoning trail a reader needs to understand why the canonical `../REPORT.md` says what it says.
+- Deleting it erases the reasoning trail a reader needs to understand why the canonical reports say what they say.
 
-Always prefer `../REPORT.md` for current claims.
+For current claims, prefer `../../reports/ARTICLE.md` (v3) and `../REPORT_v1_mvp.md` (MVP-frozen).

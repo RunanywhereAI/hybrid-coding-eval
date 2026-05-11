@@ -1,4 +1,4 @@
-"""Tests for ``bin/run-experiment.py`` + ``lib/experiment.py`` (T4.1)."""
+"""Tests for the orchestrator (``hybrid_coding_eval.cli.run`` + ``core.experiment``)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from hybrid_coding_eval.core.metrics import (  # noqa: E402
 )
 from hybrid_coding_eval.core.results import append_row  # noqa: E402
 
-SCRIPT = _REPO_ROOT / "bin" / "run-experiment.py"
+RUN_ARGS = [sys.executable, "-m", "hybrid_coding_eval.cli.run"]
 
 
 def _make_row(task_id: str, route: str) -> ResultRow:
@@ -88,8 +88,7 @@ def test_dry_run_prints_plan_and_exits_zero(tmp_path: Path) -> None:
     out = tmp_path / "dryrun"
     proc = subprocess.run(
         [
-            sys.executable,
-            str(SCRIPT),
+            *RUN_ARGS,
             "--smoke",
             "--categories",
             "A",
@@ -142,8 +141,7 @@ def test_resume_skip_is_a_noop_when_all_pairs_done(tmp_path: Path) -> None:
 
     proc = subprocess.run(
         [
-            sys.executable,
-            str(SCRIPT),
+            *RUN_ARGS,
             "--smoke",
             "--categories",
             "A",
@@ -172,8 +170,7 @@ def test_dry_run_with_all_categories_routes(tmp_path: Path) -> None:
     out = tmp_path / "plan9"
     proc = subprocess.run(
         [
-            sys.executable,
-            str(SCRIPT),
+            *RUN_ARGS,
             "--smoke",
             "--categories",
             "A,B,C",

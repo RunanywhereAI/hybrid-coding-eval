@@ -43,9 +43,10 @@ def test_devminion_extract_json_is_patched() -> None:
     at the resilient parser from r4.
     """
     # Trigger the import chain.
-    from hybrid_coding_eval.runners import r4_minion, r5_devminion  # noqa: F401
     from minions import minion as _minion
     from minions import minion_code as _minion_code
+
+    from hybrid_coding_eval.runners import r4_minion, r5_devminion  # noqa: F401
 
     resilient = r4_minion._resilient_extract_json
     assert _minion._extract_json is resilient
@@ -61,8 +62,9 @@ def test_json_proxy_leaves_real_json_unmodified() -> None:
     global :mod:`json` module. Regression test for the subtle bug R4
     called out in its own source comments.
     """
-    from hybrid_coding_eval.runners import r4_minion, r5_devminion  # noqa: F401
     import json as real_json
+
+    from hybrid_coding_eval.runners import r4_minion, r5_devminion  # noqa: F401
 
     # Plain json.loads should not inject Minion's default keys.
     parsed = real_json.loads('{"a": 1}')
@@ -76,7 +78,7 @@ def test_aggregate_calls_counts_every_round() -> None:
 
     1 cloud (runbook) + N * (1 local + 1 cloud) per step + 1 cloud (final).
     """
-    from hybrid_coding_eval.runners.r5_devminion import _aggregate_calls, LOCAL_MODEL
+    from hybrid_coding_eval.runners.r5_devminion import LOCAL_MODEL, _aggregate_calls
 
     fake = {
         "session_log": {
@@ -161,8 +163,9 @@ def test_r4_import_does_not_break() -> None:
 @pytest.mark.parametrize("route", ["R1", "R2", "R3", "R4", "R5"])
 def test_bench_config_schema_accepts_r5(route: str) -> None:
     """Config schema's Route Literal must include every live runner id."""
-    from hybrid_coding_eval.core.config.schema import BenchConfig
     from pydantic import ValidationError
+
+    from hybrid_coding_eval.core.config.schema import BenchConfig
 
     payload = {
         "variant_tag": "test",
