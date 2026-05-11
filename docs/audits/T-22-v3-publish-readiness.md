@@ -101,7 +101,7 @@ git ls-files | xargs grep -l "sk-ant-\|sk-proj-\|sk-svc-" \
 
 Four hits, **all placeholders or regex patterns**, none are real keys:
 
-- `docs/OSS_REVIEW.md:19` — describes the regex pattern `sk-ant-…`
+- `archive/docs/OSS_REVIEW.md:19` — describes the regex pattern `sk-ant-…`
   used by the leak-scanner.
 - `docs/REPRODUCING.md:60,176` — copy-paste examples (`sk-ant-…`).
 - `research/2026-04_production_hybrid_general_use_cases/report.md:891`

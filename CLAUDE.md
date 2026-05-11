@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A **reproducible benchmark harness** (not a product) that compares local vs cloud vs hybrid LLM routing on coding tasks. One developer laptop, one cloud model, one local model, five routes (R1-R5), 50 tasks × 5 routes = 250 v3 rows (plus 180 preserved MVP rows). Canonical article lives at `reports/ARTICLE.md`; the comprehensive technical narrative is `reports/FINAL_V3_REPORT.md`; the preserved MVP report is `results/REPORT_v1_mvp.md`; the canonical MVP dataset is `results/raw.jsonl`. Experimental runs are **preserved as-is** under `results/runs/NN-*/` — never edit rows after a sweep; re-score or re-judge produces new per-run directories.
+A **reproducible benchmark harness** (not a product) that compares local vs cloud vs hybrid LLM routing on coding tasks. One developer laptop, one cloud model, one local model, five routes (R1-R5), 50 tasks × 5 routes = 250 v3 rows (plus 180 preserved MVP rows). Canonical article lives at `reports/ARTICLE.md` (~7,600 words; comprehensive — covers methodology, per-shape dives, per-route worked examples, 10 surprising findings, hypothesis scorecard, limits, reproducibility, citations). The preserved MVP report is `results/REPORT_v1_mvp.md`; the canonical MVP dataset is `results/raw.jsonl`. Experimental runs are **preserved as-is** under `results/runs/NN-*/` — never edit rows after a sweep; re-score or re-judge produces new per-run directories.
 
 **Status.** v3 sweep complete on branch `mono-repo-reorg` (tag `v3-public-candidate`). Pre-MVP narrative, dated planning artefacts, and research input snapshots live in `archive/` (see `archive/README.md`); they're preserved for lineage but are not part of the canonical OSS surface. The active 22-task plan that drove the v3 cycle is `docs/FINAL_REPORT_PLAN.md` (landed).
 
@@ -86,7 +86,7 @@ hybrid-coding-eval/
 │   └── pipelines/architect/         # core.mjs + runner.mjs (Node shim R3 subprocesses)
 ├── vendor/                          # vendored third-party (Stanford minions, lm-eval-harness-judge)
 ├── tests/                           # pytest suite
-├── reports/                         # publish surface (ARTICLE, FINAL_V3_REPORT, DECISION_TABLE, TOKEN_BUDGET, APPENDICES)
+├── reports/                         # publish surface (ARTICLE, DECISION_TABLE, TOKEN_BUDGET, APPENDICES)
 ├── results/                         # read-only — preserved runs + canonical dataset
 │   ├── raw.jsonl                    # 180 MVP rows, bit-identical forever
 │   ├── REPORT_v1_mvp.md             # MVP report (frozen)
@@ -97,7 +97,7 @@ hybrid-coding-eval/
 │       ├── 04-r4-minion/            # MVP R4 Minion on SWE-bench
 │       ├── 07-v3-devstral-all-routes/  # v3 250-row sweep (5 routes × 8 shapes)
 │       └── 11-judge-robust-D/       # 96-verdict triple-judge audit on D3+D4
-├── docs/                            # reference (ARCHITECTURE, METHODOLOGY, REPRODUCING, ROUTING_STRATEGIES, PRIOR_ART, OSS_REVIEW, RUNANYWHERE_INTEGRATION, FINAL_REPORT_PLAN, audits/T-22)
+├── docs/                            # reference (ARCHITECTURE, METHODOLOGY, REPRODUCING, ROUTING_STRATEGIES, PRIOR_ART, audits/T-22)
 ├── examples/                        # "drop in a new model" walkthrough + run-comparison.mjs
 └── archive/                         # preserved lineage — pre-MVP narrative, research inputs, POC examples
 ```
@@ -166,14 +166,13 @@ Five adapters under `src/hybrid_coding_eval/benchmarks/` (HumanEval+, SWE-bench 
 
 ## Where to read next
 
-- `reports/ARTICLE.md` — the canonical v3 article.
-- `reports/FINAL_V3_REPORT.md` — 6800-word technical narrative.
+- `reports/ARTICLE.md` — the canonical v3 article (~7,600 words; standalone).
 - `reports/DECISION_TABLE.md`, `reports/TOKEN_BUDGET.md`, `reports/APPENDIX_{TASKS,SCENARIOS,ROUTES}.md` — the published surface.
 - `results/REPORT_v1_mvp.md` — MVP report (frozen).
-- `docs/FINAL_REPORT_PLAN.md` — the 22-task plan that drove the v3 cycle.
 - `docs/ARCHITECTURE.md` — full code layout + data flow (long).
 - `docs/METHODOLOGY.md` — scoring rubrics, contamination analysis, what the eval does and doesn't claim.
 - `docs/REPRODUCING.md` — copy-paste reproduction on a fresh machine.
 - `docs/ROUTING_STRATEGIES.md` — deep dive on the seven router strategies.
+- `docs/PRIOR_ART.md` — research synthesis.
 - `docs/audits/T-22-v3-publish-readiness.md` — final publish-readiness audit.
 - `archive/README.md` — provenance for archived material (read only if auditing project evolution).

@@ -7,8 +7,7 @@
 
 ## 👉 Start here
 
-- **[`reports/ARTICLE.md`](./reports/ARTICLE.md) — the canonical article. Read this.**
-- [`reports/FINAL_V3_REPORT.md`](./reports/FINAL_V3_REPORT.md) — 6800-word technical narrative: methodology, per-category deep-dives, 10 most-surprising findings, hypothesis-vs-data scorecard.
+- **[`reports/ARTICLE.md`](./reports/ARTICLE.md) — the canonical article (7,600+ words, comprehensive). Read this.**
 - [`reports/DECISION_TABLE.md`](./reports/DECISION_TABLE.md) — per-shape × route pass / cost / cloud-fraction grid.
 - [`reports/TOKEN_BUDGET.md`](./reports/TOKEN_BUDGET.md) — token-first headline; every cost is derived from stored tokens × pinned pricing.
 - [`reports/APPENDIX_TASKS.md`](./reports/APPENDIX_TASKS.md) — every `(task, route, variant)` row verbatim: problem, prompt, output, score, judge reasoning.
@@ -89,8 +88,7 @@ hybrid-coding-eval/
 ├── tests/                             ← pytest suite (SWE-bench Docker tests marked `slow`)
 │
 ├── reports/                           ← the published surface
-│   ├── ARTICLE.md                     ← 👉 the canonical v3 article
-│   ├── FINAL_V3_REPORT.md             ← 6800-word technical narrative
+│   ├── ARTICLE.md                     ← 👉 the canonical v3 article (~7,600 words, comprehensive)
 │   ├── DECISION_TABLE.md              ← per-shape × route grid
 │   ├── TOKEN_BUDGET.md                ← token-first cost derivation
 │   ├── APPENDIX_TASKS.md              ← every (task, route, variant) row
@@ -120,11 +118,8 @@ hybrid-coding-eval/
 │   ├── ARCHITECTURE.md                ← code layout + data flow
 │   ├── METHODOLOGY.md                 ← scoring rubrics, biases acknowledged, what we do and don't claim
 │   ├── REPRODUCING.md                 ← copy-paste reproduction on a fresh machine
-│   ├── ROUTING_STRATEGIES.md          ← deep-dive on each route
+│   ├── ROUTING_STRATEGIES.md          ← deep-dive on the 7 router strategies
 │   ├── PRIOR_ART.md                   ← May 2026 research synthesis
-│   ├── FINAL_REPORT_PLAN.md           ← 22-task v3 plan (landed)
-│   ├── OSS_REVIEW.md                  ← pre-public audit record
-│   ├── RUNANYWHERE_INTEGRATION.md     ← future-work design doc
 │   └── audits/T-22-v3-publish-readiness.md   ← final publish-readiness audit
 │
 └── archive/                           ← preserved lineage (pre-MVP narrative, research inputs, POC examples)
@@ -174,26 +169,24 @@ Full instructions in [`docs/REPRODUCING.md`](./docs/REPRODUCING.md). Wall ~8-12h
 
 ## Where to read next
 
-1. **[`reports/ARTICLE.md`](./reports/ARTICLE.md)** — the canonical v3 article. Read this first.
-2. [`reports/FINAL_V3_REPORT.md`](./reports/FINAL_V3_REPORT.md) — 6800-word technical narrative with per-category deep-dives.
-3. [`reports/DECISION_TABLE.md`](./reports/DECISION_TABLE.md) — per-shape × route grid (pass / cost / cloud-fraction).
-4. [`reports/TOKEN_BUDGET.md`](./reports/TOKEN_BUDGET.md) — token-first headline; every cost is derived from tokens at read time.
-5. [`reports/APPENDIX_TASKS.md`](./reports/APPENDIX_TASKS.md) — forensic record: every task × route × variant with problem, prompt, output, score.
-6. [`reports/APPENDIX_SCENARIOS.md`](./reports/APPENDIX_SCENARIOS.md) — multi-scenario decision matrix.
-7. [`reports/APPENDIX_ROUTES.md`](./reports/APPENDIX_ROUTES.md) — worked examples per R1/R2/R3/R4/R5.
-8. [`results/runs/07-v3-devstral-all-routes/run-notes.md`](./results/runs/07-v3-devstral-all-routes/run-notes.md) — v3 sweep, per-run findings.
-9. [`results/runs/11-judge-robust-D/run-notes.md`](./results/runs/11-judge-robust-D/run-notes.md) — triple-judge robustness audit (96 verdicts).
-10. [`examples/drop-in-a-new-model.md`](./examples/drop-in-a-new-model.md) — 5-step walkthrough for benchmarking a new model.
-11. [`results/REPORT_v1_mvp.md`](./results/REPORT_v1_mvp.md) — the MVP report, preserved verbatim.
-12. [`results/runs/README.md`](./results/runs/README.md) — index of the experimental runs.
-13. [`docs/METHODOLOGY.md`](./docs/METHODOLOGY.md) — how the eval works, biases acknowledged.
-14. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — copy-paste reproduction on a fresh machine.
-15. [`docs/ROUTING_STRATEGIES.md`](./docs/ROUTING_STRATEGIES.md) — deep-dive on each route.
-16. [`docs/PRIOR_ART.md`](./docs/PRIOR_ART.md) — research synthesis.
-17. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — code layout + data flow.
-18. [`docs/FINAL_REPORT_PLAN.md`](./docs/FINAL_REPORT_PLAN.md) — the 22-task plan that drove the v3 cycle.
-19. [`docs/audits/T-22-v3-publish-readiness.md`](./docs/audits/T-22-v3-publish-readiness.md) — final publish-readiness audit.
-20. [`archive/README.md`](./archive/README.md) — provenance for pre-MVP narrative, research inputs, POC examples (lineage only; skip if you only care about the v3 result).
+1. **[`reports/ARTICLE.md`](./reports/ARTICLE.md)** — the canonical v3 article (~7,600 words, comprehensive). Includes methodology, per-shape deep-dives, per-route worked examples, 10 surprising findings, hypothesis scorecard, limits, reproducibility, citations. **Read this first.**
+2. [`reports/DECISION_TABLE.md`](./reports/DECISION_TABLE.md) — per-shape × route grid (pass / cost / cloud-fraction).
+3. [`reports/TOKEN_BUDGET.md`](./reports/TOKEN_BUDGET.md) — token-first headline; every cost is derived from tokens at read time.
+4. [`reports/APPENDIX_TASKS.md`](./reports/APPENDIX_TASKS.md) — forensic record: every task × route × variant with problem, prompt, output, score.
+5. [`reports/APPENDIX_SCENARIOS.md`](./reports/APPENDIX_SCENARIOS.md) — multi-scenario decision matrix.
+6. [`reports/APPENDIX_ROUTES.md`](./reports/APPENDIX_ROUTES.md) — worked examples per R1/R2/R3/R4/R5.
+7. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — copy-paste reproduction on a fresh machine (~4,800 words).
+8. [`docs/METHODOLOGY.md`](./docs/METHODOLOGY.md) — scoring rubrics + biases acknowledged.
+9. [`docs/ROUTING_STRATEGIES.md`](./docs/ROUTING_STRATEGIES.md) — deep-dive on the 7 router strategies.
+10. [`docs/PRIOR_ART.md`](./docs/PRIOR_ART.md) — May 2026 research synthesis.
+11. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — code layout + data flow.
+12. [`docs/audits/T-22-v3-publish-readiness.md`](./docs/audits/T-22-v3-publish-readiness.md) — final publish-readiness audit.
+13. [`results/runs/07-v3-devstral-all-routes/run-notes.md`](./results/runs/07-v3-devstral-all-routes/run-notes.md) — v3 sweep, per-run findings.
+14. [`results/runs/11-judge-robust-D/run-notes.md`](./results/runs/11-judge-robust-D/run-notes.md) — triple-judge robustness audit (96 verdicts).
+15. [`results/REPORT_v1_mvp.md`](./results/REPORT_v1_mvp.md) — the MVP report, preserved verbatim.
+16. [`results/runs/README.md`](./results/runs/README.md) — index of experimental runs.
+17. [`examples/drop-in-a-new-model.md`](./examples/drop-in-a-new-model.md) — 5-step walkthrough for benchmarking a new model.
+18. [`archive/README.md`](./archive/README.md) — provenance for archived material (pre-MVP narrative, the v3 technical narrative folded into ARTICLE, research inputs, POC examples). Skip unless auditing project evolution.
 
 ## License and attribution
 
