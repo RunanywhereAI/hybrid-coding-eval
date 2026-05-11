@@ -144,9 +144,9 @@ problem hides inside a long repo context.
 **Where R4 loses.** Cat A — matches R2 at 9/10, loses to R1 at 10/10.
 Cat C BigCodeBench — 1/5, worst of any route. The Minion protocol
 has no advantage when the answer is a library-API choice the local
-model doesn't know anyway. custom_arch rows come out as unscored
-prose in T-11's run (judge-pending); T-14 didn't re-judge Cat C
-custom_arch from run 06 separately — future work.
+model doesn't know anyway. custom_arch under R4 (4/5 in run 07) is
+judge-scored; the triple-judge robustness audit in run 11 covered
+only D3+D4 — custom_arch verdicts remain single-judge single-order.
 
 **v3 caveat.** Run 07 (the canonical v3 sweep) showed R4's median
 cloud_fraction is **87%**, not the 60–80% target the original Minion

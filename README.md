@@ -21,7 +21,7 @@
 ## What the five routes are
 
 | route | what it does |
-|---|---|
+| --- | --- |
 | **R1 cloud-only** | one shot to `gpt-5.5` |
 | **R2 local-only** | one shot to `devstral:24b` via Ollama |
 | **R3 hybrid-architect** | cloud plans → per-step heuristic routing → cloud synth |
@@ -33,7 +33,7 @@
 Per-shape decision distilled from [`reports/DECISION_TABLE.md`](./reports/DECISION_TABLE.md) (8 shapes × 5 routes, 250 rows, gpt-5.5 cloud / devstral:24b local).
 
 | Shape | Best route | Why |
-|---|---|---|
+| --- | --- | --- |
 | A — HumanEval+ (10) | **R2** (or R1) | R2 9/10 at $0.000; R1 10/10 at $0.012. Every hybrid pays 3-20× for no quality gain. |
 | B — SWE-bench Verified (10) | **R1** | R1 = R3 = R4 = 3/10 (same 3 Django tasks). Hybrid pays 1.3-3.7× for parity. R5 = 0/10. |
 | C-bcb — BigCodeBench-Hard (5) | **R1** or **R2** | R1 = R2 = 1/5. Hybrid regresses to 0/5. |
@@ -50,7 +50,7 @@ Per-shape decision distilled from [`reports/DECISION_TABLE.md`](./reports/DECISI
 
 ## Repo layout
 
-```
+```text
 hybrid-coding-eval/
 ├── README.md                          ← you are here
 ├── CLAUDE.md                          ← project guide for AI assistants (read this first if you're an LLM)
@@ -203,4 +203,4 @@ Full instructions in [`docs/REPRODUCING.md`](./docs/REPRODUCING.md). Wall ~8-12h
 
 Suggested citation (if you use our numbers):
 
-> Monga, Sanchit and contributors. *hybrid-coding-eval: reproducible cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing on coding tasks.* 2026. https://github.com/RunanywhereAI/hybrid-coding-eval
+> Monga, Sanchit and contributors. *hybrid-coding-eval: reproducible cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing on coding tasks.* 2026. <https://github.com/RunanywhereAI/hybrid-coding-eval>
