@@ -23,7 +23,7 @@ if [ $# -gt 0 ]; then
 fi
 
 # Verify router is up
-if ! curl -s --max-time 2 http://127.0.0.1:8787/healthz | grep -q '"ok":true'; then
+if ! curl -s --max-time 2 http://127.0.0.1:8787/healthz | grep -q '"ok": *true'; then
   echo "ERROR: router not running at :8787. Start it: (cd router && ./start.sh)"
   exit 1
 fi
@@ -40,7 +40,7 @@ for V in "${VARIANTS[@]}"; do
   # Uses --smoke flag to cap at 1 task per category.
   ./bench run --config "configs/variants/${V}.yaml" \
     --set out_dir="results/runs/smoke-${V}" \
-    --set benchmark.routes='["R2","R3"]' \
+    --set benchmark.routes=R2,R3 \
     --smoke \
     >> "$LOG" 2>&1 || { echo "FAILED: $V — see $LOG"; continue; }
 

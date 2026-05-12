@@ -19,7 +19,7 @@ HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$HERE"
 
 # Verify prerequisites
-if ! curl -s --max-time 2 http://127.0.0.1:8787/healthz | grep -q '"ok":true'; then
+if ! curl -s --max-time 2 http://127.0.0.1:8787/healthz | grep -q '"ok": *true'; then
   echo "ERROR: router not running. Start it: (cd router && ./start.sh)" >&2
   exit 1
 fi
@@ -57,7 +57,7 @@ for VARIANT in 17-qwen3coder-all-routes 18-qwen2.5coder-all-routes 19-glm47flash
 
   log "Model sweep — $VARIANT — heuristic baseline (R2+R3+R4+R5)"
   ./bench run --config "configs/variants/${VARIANT}.yaml" \
-    --set benchmark.routes='["R2","R3","R4","R5"]' \
+    --set benchmark.routes=R2,R3,R4,R5 \
     --resume || {
     echo "WARN: $VARIANT heuristic baseline failed; continuing"
   }
@@ -66,7 +66,7 @@ for VARIANT in 17-qwen3coder-all-routes 18-qwen2.5coder-all-routes 19-glm47flash
     OUTDIR="results/runs/${VARIANT}-${S}"
     log "Model sweep — $VARIANT — strategy=$S — R3 only"
     ./bench run --config "configs/variants/${VARIANT}.yaml" \
-      --set benchmark.routes='["R3"]' \
+      --set benchmark.routes=R3 \
       --set router.strategy="$S" \
       --set out_dir="$OUTDIR" \
       --resume || {
