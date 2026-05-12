@@ -165,6 +165,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Run routes without scoring inline.",
     )
     p.add_argument(
+        "--router-strategy",
+        default="heuristic",
+        choices=[
+            "always-cloud",
+            "always-local",
+            "rules",
+            "heuristic",
+            "llm-classifier",
+            "embedding-knn",
+            "cascade",
+        ],
+        help=(
+            "Routing strategy R3's executor + synthesizer steps use "
+            "(default: heuristic). Ignored by R1/R2 (forced by definition) "
+            "and R4/R5 (role-fixed). Sourced from config.router.strategy "
+            "when launched via ./bench."
+        ),
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="Print planned work and exit without running.",
@@ -287,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
                 outputs_dir=outputs_dir,
                 raw_path=raw_path,
                 skip_scoring=args.skip_scoring,
+                router_strategy=args.router_strategy,
             )
         except Exception as exc:  # noqa: BLE001 — keep the sweep alive
             had_infra_error = True

@@ -234,8 +234,14 @@ def _invoke_architect(
     proxy_url: str,
     max_steps: int,
     timeout_s: int,
+    router_strategy: str = "heuristic",
 ) -> tuple[dict[str, Any], int, str | None]:
     """Run the JS shim. Returns ``(parsed_stdout, wall_ms, error_or_None)``.
+
+    ``router_strategy`` controls the model id passed to the architect's
+    executor and synthesizer steps (``router/<strategy>``). Defaults to
+    ``heuristic`` to preserve v3 sweep semantics. Valid values match the
+    7 strategies in ``router/strategies.mjs``.
 
     Errors from the subprocess are surfaced as the 3rd element rather than
     raised — the caller wraps them into an error-flavoured ResultRow.
@@ -244,7 +250,13 @@ def _invoke_architect(
         return {}, 0, f"architect shim not found at {_ARCHITECT_SHIM}"
 
     stdin_payload = json.dumps(
-        {"task": task_text, "proxy": proxy_url, "maxSteps": max_steps}
+        {
+            "task": task_text,
+            "proxy": proxy_url,
+            "maxSteps": max_steps,
+            "executor": f"router/{router_strategy}",
+            "synthesizer": f"router/{router_strategy}",
+        }
     )
 
     t0 = time.monotonic()
@@ -293,6 +305,7 @@ def run(
     output_dir: Path | None = None,
     max_steps: int = 10,
     timeout_s: int = 1800,
+    router_strategy: str = "heuristic",
 ) -> ResultRow:
     """Invoke the JS architect via subprocess and build a ResultRow.
 
@@ -318,6 +331,7 @@ def run(
         proxy_url=proxy_url,
         max_steps=max_steps,
         timeout_s=timeout_s,
+        router_strategy=router_strategy,
     )
     finished_at = datetime.now(timezone.utc).isoformat()
 

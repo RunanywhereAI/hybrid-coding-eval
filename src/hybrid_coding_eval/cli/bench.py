@@ -81,6 +81,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         ",".join(config.benchmark.routes),
         "--proxy-url",
         f"http://127.0.0.1:{config.router.port}",
+        "--router-strategy",
+        config.router.strategy,
     ]
     if config.benchmark.smoke:
         argv.append("--smoke")

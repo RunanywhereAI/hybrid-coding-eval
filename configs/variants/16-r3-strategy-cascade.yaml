@@ -1,0 +1,37 @@
+# Strategy sweep — cascade (heuristic first, llm-classifier tiebreak)
+#
+# v3.2 strategy sweep: R3 only, 50 tasks. Heuristic decides first; on low
+# confidence, llm-classifier tiebreaks. Pays the LLM cost only on
+# borderline cases — should be cheaper than pure llm-classifier and
+# higher quality than pure heuristic on the borderline calls.
+# See variants 12-16. Expected runtime ~2.5-3h wall, ~$8.65 OpenAI gpt-5.5.
+# Requires `ollama pull qwen3:0.6b`.
+
+# yaml-language-server: $schema=../schema.json
+
+variant_tag: v3.2-r3-strategy-cascade
+out_dir: results/runs/16-r3-strategy-cascade
+
+models:
+  cloud: gpt-5.5
+  cloud_fallback: gpt-5
+  local: devstral:24b
+  judge: claude-opus-4-7
+
+router:
+  strategy: cascade
+
+benchmark:
+  categories: [A, B, C, D]
+  routes: [R3]
+  seeds: [42]
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+    - openai-gpt5
+    - openai-gpt5-mini
+    - anthropic-claude-opus-4.7
+    - anthropic-claude-sonnet-4.6
+    - anthropic-claude-haiku-4.5

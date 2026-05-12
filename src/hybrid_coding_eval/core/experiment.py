@@ -297,18 +297,27 @@ def run_pair(
     outputs_dir: Path,
     raw_path: Path,
     skip_scoring: bool,
+    router_strategy: str = "heuristic",
 ) -> ResultRow:
     """Execute one (task, route) pair end-to-end: runner → score → append.
+
+    ``router_strategy`` is forwarded only to R3, which is the one route
+    that actually consults a router-strategy at each step. R1/R2 force
+    cloud/local by design; R4/R5 hardwire backends to roles. The kwarg
+    defaults to ``heuristic`` to preserve v3 sweep semantics on routes
+    that never landed in v3 with anything else.
 
     Returns the ResultRow so the caller can format a progress line.
     """
     runner = _runner_for(plan_item.route)
-    row = runner(
-        plan_item.task,
-        proxy_url=proxy_url,
-        hardware_profile_ref=hardware_profile_ref,
-        output_dir=outputs_dir,
-    )
+    runner_kwargs: dict[str, Any] = {
+        "proxy_url": proxy_url,
+        "hardware_profile_ref": hardware_profile_ref,
+        "output_dir": outputs_dir,
+    }
+    if plan_item.route == "R3":
+        runner_kwargs["router_strategy"] = router_strategy
+    row = runner(plan_item.task, **runner_kwargs)
 
     if not skip_scoring:
         quality = score_row(row, plan_item.source, plan_item.task)

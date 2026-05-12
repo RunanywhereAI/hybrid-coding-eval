@@ -365,7 +365,25 @@ The router proxy at [`router/strategies.mjs`](../router/strategies.mjs) supports
 
 Full deep-dive on each strategy: [`../docs/ROUTING_STRATEGIES.md`](../docs/ROUTING_STRATEGIES.md).
 
-### §8.4 Scoring — functional, SWE-bench, LLM-judge
+### §8.4 What's tested vs what's available
+
+The 7 strategies listed above all exist in code; **the v3 sweep exercises only one**. The full status:
+
+| strategy | exercised in v3 sweep? | where it would fire |
+| --- | --- | --- |
+| `always-cloud` | yes, in R1 (by definition) | every R1 call |
+| `always-local` | yes, in R2 (by definition) | every R2 call |
+| `heuristic` | **yes — R3 executor + synthesizer** | per-step routing in R3 |
+| `rules` | no | could replace R3's heuristic |
+| `llm-classifier` | no | could replace R3's heuristic |
+| `embedding-knn` | no | could replace R3's heuristic |
+| `cascade` | no | could replace R3's heuristic |
+
+R4 (Minion) and R5 (DevMinion) do not use the routing strategies at all. Their protocols hardwire roles to backends: supervisor / architect / reviewer always cloud (`router/always-cloud`), worker / editor always local (`router/always-local`). There is no per-turn decision point in the Minion/DevMinion protocols where a strategy could fire. **The strategies only apply to R3**, which is the only route that decomposes a task into steps and picks a backend per step.
+
+Four strategies (`rules`, `llm-classifier`, `embedding-knn`, `cascade`) are implemented and reachable via the proxy but were not exercised in v3 because R3's Python runner historically passed `router/heuristic` to the architect subprocess regardless of the config's `router.strategy` field. That wiring is fixed in v3.2: `config.router.strategy` now flows to R3, and `configs/variants/12-16-r3-strategy-*.yaml` ship 5 sweep configs that exercise each strategy on the same 50-task v3 set. Running those produces a fresh ~250-row strategy-sweep dataset; results will be folded into a future article revision when they land. The cost and quality differences between strategies on this hardware/model mix remain an open empirical question.
+
+### §8.5 Scoring — functional, SWE-bench, LLM-judge
 
 **Functional scorer** (A, C-bcb, D1, D5): generated code is extracted from the model output (first Python code block), written to a `python:3.12-slim` Docker container with `--network none`, 60 s wall-clock timeout, 512 MB memory cap, and pytest is run. Image at [`src/hybrid_coding_eval/scorers/Dockerfile.functional_python`](../src/hybrid_coding_eval/scorers/Dockerfile.functional_python). Composite = `tests_passed / tests_total`.
 
@@ -375,7 +393,7 @@ Full deep-dive on each strategy: [`../docs/ROUTING_STRATEGIES.md`](../docs/ROUTI
 
 **Triple-judge audit** (run 11, D3+D4 only): 16 pairings × 3 judges (opus-4-7, sonnet-4-6, gpt-5.5) × 2 orders = 96 verdicts. Cross-vendor + order-flipped robustness check. Result: all 96 R1-wins, zero ties, zero flips.
 
-### §8.5 Cost derivation under 6 pricing scenarios
+### §8.6 Cost derivation under 6 pricing scenarios
 
 Cost is **never stored** in `raw.jsonl`. Every row records tokens-per-backend (`local_prompt`, `local_completion`, `cloud_prompt`, `cloud_completion`, `cache_read`, `cache_write`). Cost is derived at read-time:
 
@@ -401,7 +419,7 @@ The six scenarios:
 
 Local cost is set to $0 by construction. This is a simplification — the actual marginal cost of running `devstral:24b` on an M4 Max is roughly $0.005-0.01 per task (electricity + amortization). See §10 for the full caveat.
 
-### §8.6 What we measure and what we do not claim
+### §8.7 What we measure and what we do not claim
 
 **We measure** token counts per backend, quality (pass/fail or composite), wall-clock, cost derivable under 6 pricing scenarios, on 250 rows (50 unique tasks × 5 routes, single seed 42), on one hardware tier (M4 Max 64 GB).
 
