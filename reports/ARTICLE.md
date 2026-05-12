@@ -2,7 +2,7 @@
 
 > _250 graded rows across 5 routes × 8 task shapes × 6 pricing scenarios on a single M4 Max laptop. Every row records its tokens; **cost is derived from tokens at read time** against a pinned pricing table. The same dataset is re-priced under six cloud scenarios without re-running inference._
 
-**Status (2026-05-11).** Published from branch `mono-repo-reorg`, tag `v3-public-candidate`. Supersedes the v1 narrative preserved at [`../archive/docs/article-draft-v1.md`](../archive/docs/article-draft-v1.md). Successor to [`../results/REPORT_v1_mvp.md`](../results/REPORT_v1_mvp.md) (the MVP report from run 04). The numbers below are derived from [`../results/runs/07-v3-devstral-all-routes/raw.jsonl`](../results/runs/07-v3-devstral-all-routes/raw.jsonl) (250 rows, single sweep) and the triple-judge audit [`../results/runs/11-judge-robust-D/judge.jsonl`](../results/runs/11-judge-robust-D/judge.jsonl) (96 verdicts).
+**Status (2026-05-11).** Published from branch `mono-repo-reorg`, tag `v3-public-candidate`. Successor to [`../results/REPORT_v1_mvp.md`](../results/REPORT_v1_mvp.md) (the MVP report from run 04). The numbers below are derived from [`../results/runs/07-v3-devstral-all-routes/raw.jsonl`](../results/runs/07-v3-devstral-all-routes/raw.jsonl) (250 rows, single sweep) and the triple-judge audit [`../results/runs/11-judge-robust-D/judge.jsonl`](../results/runs/11-judge-robust-D/judge.jsonl) (96 verdicts).
 
 **Headline graphics.** `../results/runs/07-v3-devstral-all-routes/charts/pareto.png`, `heatmap_cost.png`, `heatmap_quality.png`, `heatmap_arqgc.png`.
 
@@ -550,7 +550,6 @@ Outputs `reports/token_budget.csv` + a per-task table under all 6 scenarios. **C
 - [`../results/runs/11-judge-robust-D/judge.jsonl`](../results/runs/11-judge-robust-D/judge.jsonl) — 96 triple-judge verdicts for D3+D4 robustness audit.
 - [`../results/runs/11-judge-robust-D/run-notes.md`](../results/runs/11-judge-robust-D/run-notes.md) — robustness audit write-up.
 - [`../results/REPORT_v1_mvp.md`](../results/REPORT_v1_mvp.md) — the MVP report from run 04, preserved verbatim for lineage.
-- [`../archive/docs/article-draft-v1.md`](../archive/docs/article-draft-v1.md) — v1 and v2 narratives, preserved for lineage.
 - [`../docs/METHODOLOGY.md`](../docs/METHODOLOGY.md) — full methodology, end-to-end.
 - [`../docs/ROUTING_STRATEGIES.md`](../docs/ROUTING_STRATEGIES.md) — deep dive on the 7 router strategies.
 - [`../docs/PRIOR_ART.md`](../docs/PRIOR_ART.md) — research synthesis.

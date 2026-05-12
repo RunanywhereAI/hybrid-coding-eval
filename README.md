@@ -122,11 +122,6 @@ hybrid-coding-eval/
 │   ├── PRIOR_ART.md                   ← May 2026 research synthesis
 │   └── audits/T-22-v3-publish-readiness.md   ← final publish-readiness audit
 │
-└── archive/                           ← preserved lineage (pre-MVP narrative, research inputs, POC examples)
-    ├── README.md                      ← provenance manifest
-    ├── docs/                          ← old plans, drafts, dated audits, history notes
-    ├── research/                      ← 9 Exa/Perplexity research snapshots that fed PRIOR_ART.md
-    └── examples/                      ← 3 pre-MVP POC comparisons (wordcount, todo-api, url-shortener)
 ```
 
 ## Quick start
@@ -186,7 +181,7 @@ Full instructions in [`docs/REPRODUCING.md`](./docs/REPRODUCING.md). Wall ~8-12h
 15. [`results/REPORT_v1_mvp.md`](./results/REPORT_v1_mvp.md) — the MVP report, preserved verbatim.
 16. [`results/runs/README.md`](./results/runs/README.md) — index of experimental runs.
 17. [`examples/drop-in-a-new-model.md`](./examples/drop-in-a-new-model.md) — 5-step walkthrough for benchmarking a new model.
-18. [`archive/README.md`](./archive/README.md) — provenance for archived material (pre-MVP narrative, the v3 technical narrative folded into ARTICLE, research inputs, POC examples). Skip unless auditing project evolution.
+18. [`AGENTS.md`](./AGENTS.md) — canonical agent guide: folder-by-folder inventory + architecture + conventions, for any AI agent working in the repo.
 
 ## License and attribution
 

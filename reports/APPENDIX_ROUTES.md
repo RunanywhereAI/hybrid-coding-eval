@@ -97,7 +97,8 @@ across 69 rows on gpt-5.5).
 **The prompt-caching claim.** §6 of the article explains why
 enabling `router.prompt_cache: true` doesn't actually reduce cost:
 OpenAI's cache needs a 1024-token prefix match and R3's static
-prompts are 400 + 80 tokens. See `archive/docs/T-13-analysis.md`.
+prompts are 400 + 80 tokens (preserved in git history; the original
+analysis doc was archived then removed in the final cleanup).
 
 ---
 
