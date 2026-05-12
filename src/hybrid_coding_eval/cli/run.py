@@ -67,13 +67,14 @@ def _load_or_generate_manifest(
             )
         manifest_data = json.loads(manifest_src.read_text(encoding="utf-8"))
     else:
-        # Generate fresh via bin/env-detect.py, write next to out_dir.
+        # Generate fresh via the cli env_detect module (bin/env-detect.py was
+        # removed in the v3.1 cleanup; the canonical entry point is now the
+        # python module).
         tmp = out_dir / "env-manifest.json"
         out_dir.mkdir(parents=True, exist_ok=True)
-        script = _REPO_ROOT / "bin" / "env-detect.py"
         try:
             proc = subprocess.run(
-                [sys.executable, str(script), "--out", str(tmp)],
+                [sys.executable, "-m", "hybrid_coding_eval.cli.env_detect", "--out", str(tmp)],
                 cwd=_REPO_ROOT,
                 check=True,
                 capture_output=True,
