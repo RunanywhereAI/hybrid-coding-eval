@@ -162,11 +162,11 @@ The sweep tests **R3 only** because R1/R2 are control baselines by definition an
 <!-- AUTO-GENERATED-START -->
 | strategy | n_rows | A pass | B pass | C-bcb pass | C-arch pass | D1 pass | D2 pass | D3 pass | D4 pass | D5 pass | sum cost | median wall ms | cloud_frac (median) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| heuristic | 18 | 9/10 | 1/8 | — | — | — | — | — | — | — | $1.53 | 96670 | 35% |
-| rules | _pending_ | | | | | | | | | | | | |
-| llm-classifier | _pending_ | | | | | | | | | | | | |
-| embedding-knn | _pending_ | | | | | | | | | | | | |
-| cascade | _pending_ | | | | | | | | | | | | |
+| heuristic | 50 | 9/10 | 3/10 | 1/5 | None/5 | 2/4 | None/4 | 4/4 | 1/4 | 2/4 | $8.40 | 141814 | 35% |
+| rules | 50 | 10/10 | 3/10 | 2/5 | None/5 | 1/4 | None/4 | 3/4 | 2/4 | 2/4 | $10.67 | 151187 | 50% |
+| llm-classifier | 50 | 10/10 | 0/10 | 1/5 | None/5 | 2/4 | None/4 | 4/4 | 0/4 | 2/4 | $3.63 | 148824 | 13% |
+| embedding-knn | 50 | 10/10 | 1/10 | 0/5 | None/5 | 1/4 | None/4 | 2/4 | 1/4 | 2/4 | $10.77 | 147246 | 50% |
+| cascade | 50 | 9/10 | 3/10 | 1/5 | None/5 | 2/4 | None/4 | 3/4 | 2/4 | 3/4 | $7.15 | 138175 | 35% |
 <!-- AUTO-GENERATED-END -->
 
 Regenerate this table: `python3 bin/v3.3-aggregate-strategy.py`. Reference comparison: the v3 sweep's R3 row in §2 has the heuristic baseline at $8.65 total cost, 47% sum cloud_fraction, 35% median cloud_fraction.
@@ -279,13 +279,20 @@ Per (model, route, shape) — passes / N. R2/R3/R4/R5 across all 4 new
 local models. R1 baseline reused from run 07 (cloud-only, doesn't
 depend on local model).
 
-## qwen3-coder:30b — _pending_ (no raw.jsonl yet)
+## qwen3-coder:30b (127 rows, 1 errors, $21.98 total, 43% median cloud_frac)
+
+| route |  A  |  B  | C-bcb | C-arch | D1 | D2 | D3 | D4 | D5 |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| R2 | 9/10 | 1/10 | 1/5 | None/5 | 0/1 | None/1 | — | — | — |
+| R3 | 10/10 | 4/10 | 2/5 | None/5 | 1/1 | None/1 | — | — | — |
+| R4 | 8/10 | 3/10 | 1/5 | None/5 | 1/1 | None/1 | — | — | — |
+| R5 | 2/10 | 0/10 | 0/5 | None/5 | 1/1 | — | — | — | — |
 
 ## qwen2.5-coder:32b — _pending_ (no raw.jsonl yet)
 
 ## glm-4.7-flash — _pending_ (no raw.jsonl yet)
 
-## gemma4:26b — _pending_ (no raw.jsonl yet)
+## gemma4:31b — _pending_ (no raw.jsonl yet)
 <!-- AUTO-GENERATED-MODELS-END -->
 
 **Questions this section answers when complete:**
