@@ -66,7 +66,7 @@ for VARIANT in 17-qwen3coder-all-routes 18-qwen2.5coder-all-routes 19-glm47flash
     OUTDIR="results/runs/${VARIANT}-${S}"
     log "Model sweep — $VARIANT — strategy=$S — R3 only"
     ./bench run --config "configs/variants/${VARIANT}.yaml" \
-      --set benchmark.routes=R3 \
+      --set benchmark.routes=R3, \
       --set router.strategy="$S" \
       --set out_dir="$OUTDIR" \
       --resume || {

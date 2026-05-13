@@ -21,4 +21,7 @@ while kill -0 "$MASTER_PID" 2>/dev/null; do
 done
 
 log "Master sweep finished. Launching Phase 6 + 7…"
-exec ./bin/v3.3-phase-6-7.sh
+./bin/v3.3-phase-6-7.sh
+
+log "Phase 6 + 7 done. Launching Phase 8 (recover missed strategy × new-model sub-sweeps)…"
+exec ./bin/v3.3-phase-8-model-strategies.sh
