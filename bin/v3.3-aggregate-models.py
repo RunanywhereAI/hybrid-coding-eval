@@ -35,6 +35,8 @@ MODELS = [
     ("18-qwen2.5coder-all-routes", "qwen2.5-coder:32b"),
     ("19-glm47flash-all-routes", "glm-4.7-flash"),
     ("20-gemma4-31b-all-routes", "gemma4:31b"),
+    ("21-qwen3.6-27b-mxfp8-all-routes", "qwen3.6:27b-coding-mxfp8"),
+    ("22-qwen3.6-35b-a3b-all-routes", "qwen3.6:35b"),
 ]
 SHAPES = ["A", "B", "C-bcb", "C-arch", "D1", "D2", "D3", "D4", "D5"]
 ROUTES = ["R2", "R3", "R4", "R5"]

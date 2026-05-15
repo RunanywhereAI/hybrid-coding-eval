@@ -67,3 +67,6 @@ done
 log "Phase 8 complete."
 ./bin/v3.3-refresh-article.sh --commit || true
 git push origin main 2>&1 | tail -3 || true
+
+log "Launching Phase 9 — Qwen 3.6 27B-mxfp8 + 35B-A3B sweeps…"
+exec ./bin/v3.3-phase-9-qwen36.sh
