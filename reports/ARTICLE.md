@@ -315,9 +315,23 @@ depend on local model).
 | R4 | 10/10 | 2/10 | 2/5 | None/5 | 1/4 | None/4 | 3/4 | 3/4 | 3/4 |
 | R5 | 6/10 | 0/10 | 0/5 | None/5 | 2/4 | None/4 | 0/4 | 1/4 | 0/4 |
 
-## qwen3.6:27b-coding-mxfp8 — _pending_ (no raw.jsonl yet)
+## qwen3.6:27b-coding-mxfp8 (200 rows, 1 errors, $36.43 total, 47% median cloud_frac)
 
-## qwen3.6:35b — _pending_ (no raw.jsonl yet)
+| route |  A  |  B  | C-bcb | C-arch | D1 | D2 | D3 | D4 | D5 |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| R2 | 10/10 | 0/10 | 1/5 | 3/5 | 0/4 | None/4 | 1/4 | 0/4 | 0/4 |
+| R3 | 9/10 | 3/10 | 2/5 | 5/5 | 2/4 | None/4 | 4/4 | 2/4 | 2/4 |
+| R4 | 10/10 | 2/10 | 0/5 | None/5 | 2/4 | None/4 | 3/4 | 3/4 | 2/4 |
+| R5 | 7/10 | 0/10 | 0/5 | None/5 | 1/4 | None/4 | 0/4 | 0/4 | 1/4 |
+
+## qwen3.6:35b (200 rows, 1 errors, $34.98 total, 44% median cloud_frac)
+
+| route |  A  |  B  | C-bcb | C-arch | D1 | D2 | D3 | D4 | D5 |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| R2 | 10/10 | 1/10 | 1/5 | None/5 | 0/4 | None/4 | 1/4 | 0/4 | 0/4 |
+| R3 | 9/10 | 3/10 | 2/5 | None/5 | 2/4 | None/4 | 4/4 | 2/4 | 3/4 |
+| R4 | 9/10 | 3/10 | 1/5 | None/5 | 1/4 | None/4 | 1/4 | 0/4 | 3/4 |
+| R5 | 7/10 | 0/10 | 0/5 | None/5 | 0/4 | None/4 | 0/4 | 0/4 | 1/4 |
 <!-- AUTO-GENERATED-MODELS-END -->
 
 **Questions this section answers when complete:**
