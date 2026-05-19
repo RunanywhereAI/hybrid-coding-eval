@@ -176,13 +176,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "llm-classifier",
             "embedding-knn",
             "cascade",
-            "agent-heuristic",
         ],
         help=(
-            "Routing strategy R3's executor + synthesizer steps use "
-            "(default: heuristic). Ignored by R1/R2 (forced by definition) "
-            "and R4/R5 (role-fixed). Sourced from config.router.strategy "
-            "when launched via ./bench."
+            "Routing strategy R3 + R6/R7/R8 use at each step. v1.1+: "
+            "'heuristic' is now agent-aware (detects ReAct loops and "
+            "scores the latest delta); it falls through to the v1.0.0 "
+            "non-agent heuristic for plain chat. Sourced from "
+            "config.router.strategy when launched via ./bench."
         ),
     )
     p.add_argument(

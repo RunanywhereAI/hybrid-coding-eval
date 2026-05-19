@@ -15,7 +15,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { agentHeuristic } from "../strategies.mjs";
+// In v1.1 the agent-aware logic IS the canonical `heuristic` strategy.
+// Tests live in this file (and call `heuristic` directly) because they
+// were written to validate the agent-aware behavior specifically.
+import { heuristic as agentHeuristic } from "../strategies.mjs";
 
 // -- fixtures ---------------------------------------------------------------
 
@@ -95,7 +98,7 @@ const TOOL_RESULT_LONG_CODE = {
 test("non-agent chat → falls through to legacyHeuristic, choice and reason wrap correctly", async () => {
   const req = { messages: [SYS_HUMAN_CHAT, USR_SHORT_CHAT] };
   const out = await agentHeuristic(req, {});
-  assert.match(out.reason, /not-agent → heuristic/);
+  assert.match(out.reason, /not-agent → legacy/);
   assert.ok(["local", "cloud"].includes(out.choice));
 });
 
@@ -110,7 +113,7 @@ test("tool-role message → detected as agent regardless of system prompt", asyn
   };
   const out = await agentHeuristic(req, {});
   assert.doesNotMatch(out.reason, /not-agent/);
-  assert.match(out.reason, /agent-heuristic\[score=/);
+  assert.match(out.reason, /heuristic\[agent score=/);
 });
 
 test("assistant.tool_calls[] → detected as agent on second turn", async () => {

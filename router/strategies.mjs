@@ -107,11 +107,18 @@ export async function rules(req) {
   };
 }
 
-// ----- strategy 4: heuristic (composite score) ------------------------------
-// Calibrated for opencode-style usage where the system prompt + tools alone
-// can be ~3K tokens. We score on USER-MESSAGE size (not total prompt) so the
-// heuristic measures actual task complexity rather than harness overhead.
-export async function heuristic(req) {
+// ----- legacyHeuristic (composite score, non-agent fall-through) -----------
+// The v1.0.0 heuristic. Calibrated for human-typed prompts where the user
+// message IS the work to do. Score is a weighted sum over (user tokens,
+// code blocks, cloud/local keyword hits, tool count). Threshold 25 →
+// cloud, below → local.
+//
+// In v1.1 this is no longer the canonical `heuristic` strategy — it's the
+// private fall-through called by the new agent-aware heuristic (below)
+// when isAgentCall(messages) returns false. This preserves byte-identical
+// behavior for every v3.3 row in the canonical dataset (non-agent calls
+// score identically; the model field has no /run-<id> for those rows).
+async function legacyHeuristic(req) {
   const text = lastUserText(req.messages);
   const lower = text.toLowerCase();
   const userTokens = approxTokens(text);
@@ -300,21 +307,25 @@ export async function embeddingKnn(req, ctx) {
   };
 }
 
-// ----- strategy 7b: agent-heuristic ----------------------------------------
+// ----- strategy 4: heuristic (agent-aware) ----------------------------------
 //
-// `heuristic` was calibrated for human-typed prompts. It routes 100% cloud on
-// agent calls because every mini-swe-agent / aider / opencode message has a
-// long system prompt and code blocks. `agent-heuristic` fixes this by:
+// The v1.1 canonical heuristic. The v1.0.0 heuristic (now `legacyHeuristic`
+// above) routed 100% cloud on agent calls because every mini-swe-agent /
+// aider / opencode message has a long system prompt + tool descriptions
+// + code blocks that all add to the composite score. This version fixes
+// it by:
 //
-//   1. Detecting agent-shaped requests (system fingerprint OR tool role
-//      OR tool_calls in assistant messages).
-//   2. Scoring the DELTA (latest tool/user message) instead of any user
-//      message in history — so a short tool-result echo scores low.
-//   3. Applying phase signals (post-tool-call → bias local; first call of
-//      loop with no prior assistant → bias cloud).
+//   1. Detecting agent-shaped requests via isAgentCall() — structural
+//      signals (tool/function role, assistant.tool_calls) first, then
+//      system-marker fallback for first-turn detection.
+//   2. Scoring the DELTA (latest tool/user message) instead of the full
+//      prompt — short tool-result echoes score low; planning prompts
+//      score high.
+//   3. Applying phase signals (post-tool-call → bias local; first call
+//      of loop with no prior assistant → bias cloud).
 //
-// Non-agent calls fall through to the regular heuristic so the strategy is a
-// safe drop-in replacement.
+// Non-agent calls fall through to `legacyHeuristic` so v3.3 numbers stay
+// byte-identical.
 
 // Default markers that identify an agent call by system-prompt content.
 // Structural signals (`tool`/`function` role + assistant.tool_calls) are
@@ -423,16 +434,17 @@ function previousAssistantHadToolCall(messages) {
   return false;
 }
 
-export async function agentHeuristic(req, ctx) {
+export async function heuristic(req, ctx = {}) {
   const isAgent = isAgentCall(req.messages, ctx);
 
-  // Non-agent: fall through to regular heuristic so this strategy is a safe
-  // drop-in replacement.
+  // Non-agent: fall through to the v1.0.0 legacy heuristic — preserves
+  // v3.3 / v1.0.0 numerical semantics for any caller that doesn't carry
+  // an agent fingerprint.
   if (!isAgent) {
-    const h = await heuristic(req);
+    const h = await legacyHeuristic(req);
     return {
       ...h,
-      reason: `agent-heuristic[not-agent → heuristic]: ${h.reason}`,
+      reason: `heuristic[not-agent → legacy]: ${h.reason}`,
     };
   }
 
@@ -489,7 +501,7 @@ export async function agentHeuristic(req, ctx) {
 
   return {
     choice,
-    reason: `agent-heuristic[score=${score.toFixed(1)} >=${THRESHOLD}? → ${choice}] role=${deltaRole} ${parts.join(" ")}`,
+    reason: `heuristic[agent score=${score.toFixed(1)} >=${THRESHOLD}? → ${choice}] role=${deltaRole} ${parts.join(" ")}`,
     confidence,
     meta: { score, threshold: THRESHOLD, distance, deltaRole, deltaTokens },
   };
@@ -506,7 +518,10 @@ export async function agentHeuristic(req, ctx) {
 // on borderline). Higher threshold → more LLM tiebreaks fire.
 export async function cascade(req, ctx) {
   const threshold = ctx.cascadeThreshold ?? 15;
-  const h = await heuristic(req);
+  // Forward ctx so the inner heuristic can read agentHeuristicThreshold +
+  // extraAgentMarkers. Cascade is now also agent-aware (free ride via the
+  // heuristic upgrade).
+  const h = await heuristic(req, ctx);
   const distance = h.meta?.distance ?? 999;
   if (distance > threshold)
     return {
@@ -560,9 +575,8 @@ export const STRATEGIES = {
   "always-local":   { fn: alwaysLocal,   description: "Control: always route to the local model. Useful for measuring local-only quality." },
   "always-cloud":   { fn: alwaysCloud,   description: "Control: always route to the cloud model. Useful for measuring cloud-only cost." },
   "rules":          { fn: rules,         description: "Hard-coded keyword + token rules. Fast, deterministic, no model in the loop." },
-  "heuristic":      { fn: heuristic,     description: "Weighted-score heuristic across token count, code blocks, keywords, tool count." },
+  "heuristic":      { fn: heuristic,     description: "Agent-aware composite-score heuristic. Detects ReAct agent calls and scores the latest message delta with phase signals; falls through to legacy non-agent heuristic for human chat prompts." },
   "llm-classifier": { fn: llmClassifier, description: "Single qwen3:0.6b call returns SIMPLE or COMPLEX. ~50–150ms latency overhead." },
   "embedding-knn":  { fn: embeddingKnn,  description: "Embed query with nomic-embed-text and kNN-vote against a 50-example labelled corpus." },
   "cascade":        { fn: cascade,       description: "Heuristic first; if score is borderline, fall back to llm-classifier as tie-breaker." },
-  "agent-heuristic":{ fn: agentHeuristic, description: "Agent-aware heuristic: detects agent fingerprint, scores only the latest tool/user delta (not the full prompt), with phase signals for tool-result vs planning calls." },
 };

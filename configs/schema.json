@@ -185,8 +185,7 @@
             "heuristic",
             "llm-classifier",
             "embedding-knn",
-            "cascade",
-            "agent-heuristic"
+            "cascade"
           ],
           "title": "Strategy",
           "type": "string"
