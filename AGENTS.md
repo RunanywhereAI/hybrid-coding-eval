@@ -14,7 +14,7 @@ A **reproducible benchmark harness** that measures whether a coding task should 
 - `results/runs/07-v3-devstral-all-routes/` — the canonical 250-row sweep dataset
 - `LICENSE` (MIT, code) + `LICENSE-DATA` (CC-BY-4.0, data/article) + `NOTICE.md` (third-party attribution)
 
-**Status:** v3 sweep landed 2026-05-11. Tag `v3-public-candidate` at commit `34094cc`. Branch `mono-repo-reorg`.
+**Status:** v1.0.0 public OSS release (2026-05-18). The 250-row v3 publication dataset and the 33-variant v3.3 broader sweep are both preserved under `results/runs/`. See `CHANGELOG.md` for the v0.x → v3.x → v1.0.0 lineage.
 
 ## Drop in a new model in 90 seconds
 
