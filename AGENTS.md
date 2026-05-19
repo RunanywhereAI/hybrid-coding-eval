@@ -9,10 +9,14 @@ A **reproducible benchmark harness** that measures whether a coding task should 
 **Top-level canonical surfaces:**
 
 - `README.md` — the OSS landing page
-- `reports/ARTICLE.md` — the published v3 article (~7,600 words; standalone)
 - `docs/REPRODUCING.md` — copy-paste reproduction on a fresh machine
-- `results/runs/07-v3-devstral-all-routes/` — the canonical 250-row sweep dataset
-- `LICENSE` (MIT, code) + `LICENSE-DATA` (CC-BY-4.0, data/article) + `NOTICE.md` (third-party attribution)
+- `results/runs/07-v3-devstral-all-routes/` — the canonical 250-row v3 publication dataset
+- `results/runs/` (broader) — the 33-variant v3.3 sweep corpus
+- `CHANGELOG.md` — release history (Keep a Changelog format)
+- `CONTRIBUTING.md` — how to add a model, task, or routing strategy
+- `LICENSE` (MIT, code) + `LICENSE-DATA` (CC-BY-4.0, data) + `LICENSE.md` (file-type breakdown) + `NOTICE.md` (third-party attribution)
+
+> The article + appendices that were previously under `reports/` have moved to the maintainer's gitignored `personal/` directory and are not part of the public OSS surface. The empirical record they're built on (the `results/runs/` datasets) stays tracked here.
 
 **Status:** v1.0.0 public OSS release (2026-05-18). The 250-row v3 publication dataset and the 33-variant v3.3 broader sweep are both preserved under `results/runs/`. See `CHANGELOG.md` for the v0.x → v3.x → v1.0.0 lineage.
 
@@ -21,9 +25,9 @@ A **reproducible benchmark harness** that measures whether a coding task should 
 ```bash
 cp configs/variants/_template.yaml configs/variants/my-model.yaml
 # edit two lines (variant_tag + models.cloud or models.local), then:
+./bench setup                                    # first run only — clones vendor/minions, builds Docker image, pulls aux models
 ./bench run --config configs/variants/my-model.yaml
 ./bench analyze results/runs/my-variant/
-./bench report article
 ```
 
 `./bench show-config --config configs/variants/my-model.yaml` prints the merged config + SHA256.
@@ -64,8 +68,10 @@ cd router && npm test                                          # writes tests/RE
 ./bench analyze  results/runs/07-v3-devstral-all-routes/               # aggregate + ARQGC + charts
 ./bench token-budget results/runs/07-v3-devstral-all-routes/           # 6-scenario token + cost matrix
 ./bench schema --out configs/schema.json                               # regen JSON Schema
-./bench report article                                                 # regenerate reports/ARTICLE etc.
+./bench setup                                                          # one-shot first-time setup (vendor/minions + Docker image + aux models)
 ```
+
+> `./bench report` exists and regenerates the maintainer's article + appendices into the gitignored `personal/reports/` directory. It is not part of the public OSS surface and is not used in normal contributor workflows.
 
 ## Folder-by-folder inventory
 
@@ -75,17 +81,20 @@ Every directory in the repo and what it contains. If you're a new agent and want
 
 | Path | What it is |
 | --- | --- |
-| `README.md` | OSS landing page — points to ARTICLE, REPRODUCING, decision table |
+| `README.md` | OSS landing page |
 | `AGENTS.md` | **this file** — canonical agent guide |
-| `CLAUDE.md` | Pointer to AGENTS.md (kept so Claude Code auto-loader still resolves) |
-| `LICENSE` | MIT (covers all code under `src/`, `router/`, `bin/`, `tests/`) |
-| `LICENSE-DATA` | CC-BY-4.0 (covers everything under `results/`, `reports/`, charts, the article) |
+| `CHANGELOG.md` | Keep-a-Changelog release history |
+| `CONTRIBUTING.md` | Dev setup, model/benchmark contribution flow, PR style |
+| `CODE_OF_CONDUCT.md` | Contributor Covenant 2.1 |
+| `LICENSE` | MIT (covers code under `src/`, `router/`, `tests/`, `configs/`) |
+| `LICENSE-DATA` | CC-BY-4.0 (covers data under `results/`, charts, docs prose) |
+| `LICENSE.md` | File-type breakdown of MIT vs CC-BY-4.0 |
 | `NOTICE.md` | Third-party attribution — Stanford Minions, lm-eval-harness, benchmark sources |
 | `bench` | Shell wrapper that execs `python -m hybrid_coding_eval.cli.bench` (see below) |
 | `pyproject.toml` | Python package config: setuptools, deps, pytest, ruff. Declares `bench` console script |
 | `requirements.txt` | Pip dependency pins (pytest, pandas, httpx, docker, tiktoken, openai, anthropic, pydantic, pyyaml) |
 | `.env.example` | Template — copy to `.env` and fill `OPEN_AI_API_KEY` + optionally `ANTHROPIC_API_KEY` |
-| `.gitignore` | Covers `.venv/`, `.env`, `__pycache__/`, `node_modules/`, `*.log`, `minion_logs/`, `.embedder/`, `.ruff_cache/`, `router/logs/*.jsonl` (except `decisions.jsonl`), `vendor/minions/`, and `results/` with a whitelist for shippable artefacts |
+| `.gitignore` | Covers `.venv/`, `.env`, `__pycache__/`, `node_modules/`, `*.log`, `minion_logs/`, `.embedder/`, `.ruff_cache/`, `router/logs/*.jsonl` (except `decisions.jsonl`), `vendor/minions/`, `personal/` (maintainer's article material), and `results/` with a whitelist for shippable artefacts |
 
 ### `configs/` — variant configs, pricing, router corpus, JSON schema
 
@@ -95,10 +104,7 @@ configs/
 ├── router/corpus.json             # 50-example hand-labelled corpus for the embedding-kNN router strategy
 ├── schema.json                    # auto-generated JSON Schema for BenchConfig (regenerate via ./bench schema)
 └── variants/                      # one YAML per sweep — the "drop in a new model" surface
-    ├── _template.yaml             # copy this for new sweeps
-    ├── _smoke-v3.yaml             # smoke variants for development
-    ├── _smoke-r5.yaml
-    ├── _smoke-realdev.yaml
+    ├── _template.yaml             # copy this for new sweeps; ./bench run --smoke flag is the canonical smoke path
     ├── 01-gpt5.5-qwen-v1.yaml     # MVP v1 sweep (run 01)
     ├── 02-gpt5.5-qwen-fixed-synth.yaml
     ├── 03-gpt5.5-devstral.yaml
@@ -261,21 +267,6 @@ vendor/
 
 Treat `vendor/` as immutable. If you find a bug in vendored code, patch our wrapper (`src/hybrid_coding_eval/runners/r5_devminion.py` already monkey-patches DevMinion's JSON extractor), not the vendored source. Long-term, the fix is an upstream PR.
 
-### `reports/` — the published surface (CC-BY-4.0)
-
-The artefacts a reader of the public release consumes.
-
-```
-reports/
-├── ARTICLE.md                     # 7,600-word standalone comprehensive article ← start here
-├── DECISION_TABLE.md              # 8 shapes × 5 routes pass/cost/cloud_fraction grid
-├── TOKEN_BUDGET.md                # token-first cost matrix narrative
-├── APPENDIX_TASKS.md              # every (task, route, variant) row verbatim (~146k words; query with jq)
-├── APPENDIX_SCENARIOS.md          # 6-pricing-scenario $/correct
-├── APPENDIX_ROUTES.md             # R1-R5 deep-dive worked examples
-└── token_budget.csv               # raw cost-derivation data, one row per (task, route)
-```
-
 ### `results/` — canonical research data (CC-BY-4.0)
 
 Preserved as-is. Do not edit rows after a sweep; re-score or re-judge produces new per-run directories.
@@ -330,7 +321,7 @@ docs/
     └── T-22-v3-publish-readiness.md   # final pre-public audit
 ```
 
-ARCHITECTURE.md is the longest doc — read it if you need to understand the code in depth. METHODOLOGY.md is the doc to read before interpreting any number in `reports/`.
+ARCHITECTURE.md is the longest doc — read it if you need to understand the code in depth. METHODOLOGY.md is the doc to read before interpreting any number in `results/runs/`.
 
 ### `examples/` — drop-in walkthrough
 
@@ -430,24 +421,22 @@ Five adapters under `src/hybrid_coding_eval/benchmarks/` (HumanEval+, SWE-bench 
 
 In priority order:
 
-1. **`reports/ARTICLE.md`** — the canonical v3 article (~7,600 words, standalone, covers methodology + per-shape dives + per-route worked examples + 10 surprising findings + scorecard + reproducibility).
-2. `reports/DECISION_TABLE.md` — per-shape × route grid (canonical).
-3. `reports/TOKEN_BUDGET.md` — token-first cost matrix.
-4. `reports/APPENDIX_{TASKS,SCENARIOS,ROUTES}.md` — forensic detail.
-5. `docs/REPRODUCING.md` — copy-paste reproduction on a fresh machine.
-6. `docs/METHODOLOGY.md` — scoring rubrics, biases acknowledged.
-7. `docs/ROUTING_STRATEGIES.md` — deep-dive on the 7 router strategies.
-8. `docs/ARCHITECTURE.md` — long-form code layout + data flow.
-9. `docs/PRIOR_ART.md` — research synthesis.
-10. `docs/audits/T-22-v3-publish-readiness.md` — pre-public audit.
-11. `results/runs/07-v3-devstral-all-routes/run-notes.md` — per-run findings on the canonical v3 sweep.
-12. `results/runs/11-judge-robust-D/run-notes.md` — triple-judge robustness audit.
-13. `results/REPORT_v1_mvp.md` — MVP report (frozen).
+1. `docs/REPRODUCING.md` — copy-paste reproduction on a fresh machine.
+2. `docs/METHODOLOGY.md` — scoring rubrics, biases acknowledged.
+3. `docs/ROUTING_STRATEGIES.md` — deep-dive on the 7 router strategies.
+4. `docs/ARCHITECTURE.md` — long-form code layout + data flow.
+5. `docs/PRIOR_ART.md` — research synthesis.
+6. `docs/audits/T-22-v3-publish-readiness.md` — pre-public audit (historical).
+7. `results/runs/07-v3-devstral-all-routes/run-notes.md` — per-run findings on the canonical v3 sweep.
+8. `results/runs/11-judge-robust-D/run-notes.md` — triple-judge robustness audit.
+9. `results/REPORT_v1_mvp.md` — MVP report (frozen).
+10. `CONTRIBUTING.md` — for anyone adding a model, benchmark, or strategy.
+11. `CHANGELOG.md` — v0.x → v3.x → v1.0.0 lineage.
 
 ## License + attribution
 
 - **Code** (`src/`, `router/`, `tests/`, `configs/`, `bench`): MIT — see `LICENSE`.
-- **Data + reports + figures + article** (`results/`, `reports/`, charts): CC-BY-4.0 — see `LICENSE-DATA`.
+- **Data + figures + docs prose** (`results/`, `docs/`, charts): CC-BY-4.0 — see `LICENSE-DATA`. See `LICENSE.md` for the file-type breakdown.
 - **Third-party**: Stanford Minions (MIT) + lm-eval-harness-judge (Apache 2.0) — see `NOTICE.md` and `vendor/README.md`. Benchmark tasks sampled from HumanEval+ (Apache 2.0), SWE-bench Verified (MIT), BigCodeBench-Hard (Apache 2.0). custom-arch + real-dev tasks hand-written by repo authors (CC-BY-4.0).
 
-Suggested citation: see `reports/ARTICLE.md` §13.
+Suggested citation: BibTeX entry in `README.md`.
