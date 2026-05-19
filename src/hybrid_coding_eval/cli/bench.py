@@ -285,20 +285,30 @@ def _cmd_schema(args: argparse.Namespace) -> int:
 # ---------- setup ----------------------------------------------------------
 
 _MINIONS_GIT_URL = "https://github.com/HazyResearch/minions.git"
+# Opencode (R8) fork install — env-overridable so iteration can pin a
+# specific SHA without code edits. See docs/AGENTIC_ROUTES.md.
+import os as _os
+
+_OPENCODE_GIT_URL = _os.environ.get(
+    "OPENCODE_GIT_URL",
+    "https://github.com/RunanywhereAI/opencode-1.git",
+)
+_OPENCODE_GIT_REF = _os.environ.get("OPENCODE_GIT_REF", "feat/hybrid-routing-plugin")
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # repo root
 
 
 def _ensure_minions(verbose: bool = True) -> bool:
     """Clone vendor/minions/ if missing. Returns True on success.
 
-    Idempotent: returns True immediately if already present. Used by both
-    ``bench setup`` (explicit) and ``bench run`` (auto-clone when an R4/R5
-    route is detected in the variant config).
+    Idempotent: returns True immediately if already present (detected via
+    ``.git`` or the upstream's ``app.py`` sentinel — handles both git
+    clones and manual extractions). Used by both ``bench setup`` and
+    ``bench run`` (auto-clone on first R4/R5 route).
     """
     target = _REPO_ROOT / "vendor" / "minions"
-    if (target / ".git").exists():
+    if (target / ".git").exists() or (target / "app.py").exists():
         if verbose:
-            print(f"  ✓ vendor/minions/ already cloned at {target}")
+            print(f"  ✓ vendor/minions/ present at {target}")
         return True
     if verbose:
         print(f"  Cloning Stanford Minions (~9 MB) into {target}…")
@@ -322,6 +332,108 @@ def _ensure_minions(verbose: bool = True) -> bool:
         return False
 
 
+def _ensure_opencode(verbose: bool = True) -> bool:
+    """Clone the opencode fork (R8 route) into ``vendor/opencode/``.
+
+    Fork + ref are env-overridable:
+
+    - ``OPENCODE_GIT_URL`` (default ``RunanywhereAI/opencode-1``)
+    - ``OPENCODE_GIT_REF`` (default ``feat/hybrid-routing-plugin``)
+
+    Returns True on success / already-present. Idempotent.
+    """
+    target = _REPO_ROOT / "vendor" / "opencode"
+    if (target / ".git").exists() or (target / "packages").is_dir():
+        if verbose:
+            print(f"  ✓ vendor/opencode/ present at {target}")
+        return True
+    if verbose:
+        print(
+            f"  Cloning opencode fork into {target}"
+            f" (url={_OPENCODE_GIT_URL}, ref={_OPENCODE_GIT_REF})…"
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    import subprocess
+
+    try:
+        subprocess.run(
+            [
+                "git", "clone",
+                "--depth", "1",
+                "--branch", _OPENCODE_GIT_REF,
+                _OPENCODE_GIT_URL,
+                str(target),
+            ],
+            check=True,
+            capture_output=not verbose,
+        )
+        if verbose:
+            print("  ✓ vendor/opencode/ ready")
+        return True
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        print(f"  ✗ git clone failed: {exc}", file=sys.stderr)
+        print(
+            f"    Manually clone: cd vendor && "
+            f"git clone -b {_OPENCODE_GIT_REF} {_OPENCODE_GIT_URL} opencode",
+            file=sys.stderr,
+        )
+        return False
+
+
+def _ensure_opencode_config(verbose: bool = True) -> bool:
+    """Ensure ``~/.config/opencode/opencode.json`` has the hybrid-router provider.
+
+    If the file already mentions ``hybrid-router`` (substring), leave it
+    alone. Otherwise back it up (or create fresh) with a minimal config
+    pointing at the proxy on :8787. The R8 runner expects model id shape
+    ``hybrid-router/router/<strategy>[/run-<id>]``.
+    """
+    import os
+    from pathlib import Path as _P
+
+    config_dir = _P(os.path.expanduser("~/.config/opencode"))
+    config_path = config_dir / "opencode.json"
+
+    if config_path.exists():
+        try:
+            existing = config_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            if verbose:
+                print(f"  ✗ couldn't read {config_path}: {exc}")
+            return False
+        if "hybrid-router" in existing:
+            if verbose:
+                print(f"  ✓ {config_path} already registers hybrid-router")
+            return True
+        # User has an opencode.json without hybrid-router. Back it up first.
+        backup = config_path.with_suffix(".json.pre-bench-setup")
+        backup.write_text(existing, encoding="utf-8")
+        if verbose:
+            print(f"  → backed up existing config to {backup}")
+
+    config_dir.mkdir(parents=True, exist_ok=True)
+    minimal = {
+        "$schema": "https://opencode.ai/config.json",
+        "providers": {
+            "hybrid-router": {
+                "type": "openai",
+                "base_url": "http://127.0.0.1:8787/v1",
+                "api_key": "bench-eval-key",
+                "models": {
+                    "router/heuristic":     {"name": "router/heuristic"},
+                    "router/cascade":       {"name": "router/cascade"},
+                    "router/always-cloud":  {"name": "router/always-cloud"},
+                    "router/always-local":  {"name": "router/always-local"},
+                },
+            },
+        },
+    }
+    config_path.write_text(json.dumps(minimal, indent=2) + "\n", encoding="utf-8")
+    if verbose:
+        print(f"  ✓ wrote {config_path} with hybrid-router provider")
+    return True
+
+
 def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
     """One-shot setup: clone minions, build Docker image, pull aux models, sanity-check env.
 
@@ -334,12 +446,12 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
     failures = []
 
     # 1. Stanford Minions (required for R4 + R5 routes)
-    print("[1/4] Stanford Minions (R4 + R5 routes)")
+    print("[1/5] Stanford Minions (R4 + R5 routes)")
     if not _ensure_minions(verbose=True):
         failures.append("minions clone failed")
 
     # 2. Docker image for functional scoring sandbox
-    print("\n[2/4] Functional-scoring Docker image (hybrid-eval-python:latest)")
+    print("\n[2/5] Functional-scoring Docker image (hybrid-eval-python:latest)")
     if not shutil.which("docker"):
         print("  ⚠ docker not on PATH — skipping image build")
         print("    Install Docker Desktop: https://www.docker.com/products/docker-desktop/")
@@ -365,7 +477,7 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
                 failures.append("Docker image build failed")
 
     # 3. Auxiliary Ollama models (router strategies)
-    print("\n[3/4] Auxiliary local models (router classifier + embedding)")
+    print("\n[3/5] Auxiliary local models (router classifier + embedding)")
     if not shutil.which("ollama"):
         print("  ⚠ ollama not on PATH — skipping model pulls")
         print("    Install Ollama: https://ollama.com/download")
@@ -388,8 +500,21 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
             except (FileNotFoundError, subprocess.CalledProcessError) as exc:
                 print(f"  ⚠ pull failed for {tag}: {exc}")
 
-    # 4. Environment sanity (.env file, Python version)
-    print("\n[4/4] Environment sanity")
+    # 4. Opencode fork (R8 route)
+    print("\n[4/5] Opencode (R8 route) — fork + plugin config")
+    if not shutil.which("opencode"):
+        print("  ⚠ opencode CLI not on PATH — R8 route won't work")
+        print("    Install via Homebrew: brew install opencode")
+        print("    Or build from source: https://github.com/anomalyco/opencode")
+    else:
+        print("  ✓ opencode CLI on PATH")
+    if not _ensure_opencode(verbose=True):
+        failures.append("opencode fork clone failed")
+    if not _ensure_opencode_config(verbose=True):
+        failures.append("opencode.json config setup failed")
+
+    # 5. Environment sanity (.env file, Python version)
+    print("\n[5/5] Environment sanity")
     env_path = _REPO_ROOT / ".env"
     env_example = _REPO_ROOT / ".env.example"
     if env_path.exists():
