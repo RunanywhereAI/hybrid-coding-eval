@@ -36,6 +36,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from hybrid_coding_eval.analysis.aggregate import aggregate_results  # noqa: E402
 from hybrid_coding_eval.analysis.arqgc import bounded_arqgc  # noqa: E402
+from hybrid_coding_eval.analysis.bootstrap import bootstrap_aggregate  # noqa: E402
 from hybrid_coding_eval.analysis.cost_scenarios import PRICING_SCENARIOS  # noqa: E402
 from hybrid_coding_eval.analysis.decision_matrix import build_decision_matrix  # noqa: E402
 from hybrid_coding_eval.core.results import load_results  # noqa: E402
@@ -62,6 +63,7 @@ def run_pipeline(
 
     agg_path = d / "aggregate.json"
     arqgc_path = d / "arqgc.json"
+    bootstrap_path = d / "bootstrap_cis.json"
     decision_path = d / "decision_matrix.md"
     charts_dir = d / "charts"
     charts_dir.mkdir(parents=True, exist_ok=True)
@@ -74,7 +76,13 @@ def run_pipeline(
     arqgc = bounded_arqgc(rows, scenario=scenario)
     arqgc_path.write_text(json.dumps(arqgc, indent=2))
 
-    # 3. Decision matrix.
+    # 3. Bootstrap CIs (v1.1+). Stratified by (category, route, strategy);
+    #    pools across seeds. Skipped silently on empty sweeps.
+    bootstrap = bootstrap_aggregate(rows) if rows else None
+    if bootstrap is not None:
+        bootstrap_path.write_text(json.dumps(bootstrap, indent=2))
+
+    # 4. Decision matrix.
     build_decision_matrix(agg, arqgc, decision_path, default_scenario=scenario)
 
     # 4. Charts — don't crash the pipeline if one chart fails.
@@ -101,6 +109,7 @@ def run_pipeline(
     return {
         "aggregate": agg_path,
         "arqgc": arqgc_path,
+        "bootstrap_cis": bootstrap_path if bootstrap is not None else None,
         "decision_matrix": decision_path,
         "charts": chart_paths,
         "row_count": agg["row_count"],
