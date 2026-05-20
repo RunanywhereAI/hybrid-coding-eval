@@ -43,6 +43,32 @@ const EXTRA_AGENT_MARKERS = (process.env.ROUTER_AGENT_SYSTEM_MARKERS || "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+// v1.2: nudge for local models in agent tool-use loops. qwen3-coder:30b
+// (and similar mid-size locals) tend to reply with prose on tool-result
+// interpretation turns instead of emitting the follow-up tool_call the
+// agent loop needs. This nudge is appended to the system prompt AND a
+// per-turn reminder is appended after tool messages before forwarding
+// to the local backend WHEN the request includes a `tools` array.
+//
+// Override with ROUTER_LOCAL_TOOL_USE_NUDGE=<system-suffix> or
+// ROUTER_LOCAL_POST_TOOL_REMINDER=<user-reminder>. Either can be set to
+// "disable" to skip that part of the injection.
+const DEFAULT_LOCAL_TOOL_USE_NUDGE = `\n\nIMPORTANT — Tool-Use Policy:\n` +
+  `When you need to make progress on the task, you MUST use a tool. Do not respond with prose ` +
+  `explanations, summaries, or questions about what to do next — call the appropriate tool ` +
+  `(read, write, edit, bash, glob, grep, etc.) to advance the task. Only emit plain content ` +
+  `when reporting a final result that requires no further action.`;
+const DEFAULT_LOCAL_POST_TOOL_REMINDER =
+  `Continue. The previous tool result is above. Your next response MUST be a tool_call ` +
+  `(read / write / edit / bash / glob / grep / etc.) to advance the task. Do not summarize ` +
+  `or ask what to do — call the next tool.`;
+const _rawNudge = process.env.ROUTER_LOCAL_TOOL_USE_NUDGE;
+const LOCAL_TOOL_USE_NUDGE =
+  _rawNudge === "disable" ? "" : (_rawNudge && _rawNudge.length > 0 ? _rawNudge : DEFAULT_LOCAL_TOOL_USE_NUDGE);
+const _rawReminder = process.env.ROUTER_LOCAL_POST_TOOL_REMINDER;
+const LOCAL_POST_TOOL_REMINDER =
+  _rawReminder === "disable" ? "" : (_rawReminder && _rawReminder.length > 0 ? _rawReminder : DEFAULT_LOCAL_POST_TOOL_REMINDER);
+
 const CLOUD_BASE = process.env.CLOUD_BASE || "https://api.openai.com/v1";
 const CLOUD_MODEL = process.env.CLOUD_MODEL || "gpt-5.5";
 const CLOUD_FALLBACK_MODEL = process.env.CLOUD_FALLBACK_MODEL || "gpt-5";
@@ -66,6 +92,8 @@ const ctx = {
   cascadeThreshold: CASCADE_THRESHOLD,
   agentHeuristicThreshold: AGENT_HEURISTIC_THRESHOLD,
   extraAgentMarkers: EXTRA_AGENT_MARKERS,
+  localToolUseNudge: LOCAL_TOOL_USE_NUDGE,
+  localPostToolReminder: LOCAL_POST_TOOL_REMINDER,
   cloudBase: CLOUD_BASE,
   cloudModel: CLOUD_MODEL,
   cloudKey: CLOUD_API_KEY,
@@ -275,6 +303,14 @@ function translateForCloud(body) {
 function translateForLocal(body) {
   if (!body || !Array.isArray(body.messages)) return body;
   const out = { ...body, messages: [] };
+  // (3) Tool-use nudge: if this is an agent call (request has tools[])
+  // append the nudge to the FIRST system message (or prepend a new
+  // system message if none exists). Helps qwen3-coder + similar locals
+  // emit tool_calls instead of prose on interpretation turns.
+  let nudge = ctx.localToolUseNudge;
+  const isAgentCall = Array.isArray(body.tools) && body.tools.length > 0;
+  if (!isAgentCall) nudge = "";
+  let nudgeApplied = false;
   for (const raw of body.messages) {
     if (!raw) {
       out.messages.push(raw);
@@ -291,6 +327,11 @@ function translateForLocal(body) {
         .filter(Boolean)
         .join("\n");
       m = { ...m, content: flat };
+    }
+    // (3a) Append the tool-use nudge to the first system message we see.
+    if (nudge && !nudgeApplied && m.role === "system" && typeof m.content === "string") {
+      m = { ...m, content: m.content + nudge };
+      nudgeApplied = true;
     }
     // (2) assistant.tool_calls[].function.arguments: OpenAI spec requires
     // JSON-encoded STRING; Ollama qwen3-coder rejects strings with "Value
@@ -311,6 +352,24 @@ function translateForLocal(body) {
       m = { ...m, tool_calls: newToolCalls };
     }
     out.messages.push(m);
+  }
+  // (3b) No system message in the conversation → prepend one with the nudge.
+  if (nudge && !nudgeApplied) {
+    out.messages.unshift({ role: "system", content: nudge.trimStart() });
+  }
+  // (4) Post-tool reminder — if the LAST message is a tool result and the
+  // call is agentic, append a user message that explicitly demands the
+  // next tool_call. This is the strongest-position prompt-engineering
+  // intervention; system messages are far away from the generation point
+  // for long agent contexts, but a user message at the tail is right
+  // before generation. Helps weaker locals (qwen3-coder:30b) emit
+  // tool_calls instead of prose summaries.
+  const reminder = isAgentCall ? ctx.localPostToolReminder : "";
+  if (reminder && out.messages.length > 0) {
+    const last = out.messages[out.messages.length - 1];
+    if (last && (last.role === "tool" || last.role === "function")) {
+      out.messages.push({ role: "user", content: reminder });
+    }
   }
   return out;
 }
@@ -522,6 +581,10 @@ async function jsonThrough(res, upstream, record, decision, strategyName, backen
   const echoedModel = parsed?.model || backendModel;
   const costKey = decision.choice === "local" ? "__local__" : echoedModel;
   const cost = costFor(costKey, usage);
+  // v1.2: normalize tool_calls schema in non-streaming response too
+  // (streaming had it via streamThrough; this closes the gap for opencode
+  // sessions that use stream:false for some calls).
+  normalizeToolCallsInChunk(parsed);
   if (BANNER_ENABLED && parsed?.choices?.[0]?.message?.content !== undefined) {
     parsed.choices[0].message.content =
       bannerString({ ...decision, strategy: strategyName }, ctx, backendModel) +
