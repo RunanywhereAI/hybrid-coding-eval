@@ -586,6 +586,30 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
 # ---------- sweep ---------------------------------------------------------
 
 
+def _load_dotenv(env: dict[str, str]) -> None:
+    """Merge KEY=VALUE lines from ``.env`` into ``env`` (no overwrite of
+    existing keys). Used by :func:`_spawn_router` so spawned routers see
+    ``OPEN_AI_API_KEY`` / ``OPENAI_API_KEY`` etc. without requiring the
+    parent shell to source ``.env``."""
+    dotenv_path = _REPO_ROOT / ".env"
+    if not dotenv_path.is_file():
+        return
+    try:
+        for raw in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'").strip('"')
+            if key and key not in env:
+                env[key] = value
+        if "OPEN_AI_API_KEY" in env and "OPENAI_API_KEY" not in env:
+            env["OPENAI_API_KEY"] = env["OPEN_AI_API_KEY"]
+    except OSError:
+        pass
+
+
 def _spawn_router(env_overrides: dict[str, str], port: int = 8787) -> "subprocess.Popen[bytes]":
     """Spawn ``node router/server.mjs`` with the given env overrides.
 
@@ -605,6 +629,7 @@ def _spawn_router(env_overrides: dict[str, str], port: int = 8787) -> "subproces
         raise FileNotFoundError(f"router/server.mjs not found at {server_mjs}")
 
     env = _os.environ.copy()
+    _load_dotenv(env)
     env.update(env_overrides)
     env["PORT"] = str(port)
 
