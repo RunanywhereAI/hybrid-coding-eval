@@ -115,18 +115,22 @@ The v1.1.0 code release works end-to-end. The v1.1.1 iteration sweep surfaced a 
 | Direction | Issue | Fix shipped in | Status |
 | --- | --- | --- | --- |
 | local → router → opencode | qwen3-coder emits `tool_calls[].function.arguments` as a JSON object; opencode requires JSON-encoded string. | v1.1.1 — `normalizeToolCallsInChunk()` in `router/server.mjs` | ✓ fixed |
-| opencode → router → qwen3-coder | opencode's `tool`-role messages contain JSON whose braces confuse Ollama's tool-parser: `"Value looks like object, but can't find closing '}' symbol"` 400 response. | (incoming-direction normalizer) | ⚠ open — deferred to v1.2 |
+| opencode → router → qwen3-coder | opencode's outgoing `assistant.tool_calls[].function.arguments` is a JSON-encoded **string** (OpenAI-standard); Ollama's qwen3-coder renderer crashes on strings with `"Value looks like object, but can't find closing '}' symbol"`. Also: opencode's multi-part `tool` content arrays (`[{type:"text",text:...}]`) confuse Ollama's struct-typed parser. | v1.1.3 — `translateForLocal()` in `router/server.mjs` (parse arguments back to object; flatten array content to string) | ✓ fixed |
 
-**Empirical effect** of the incoming-direction issue (from the v1.1.1 iteration sweep on 5 Exercism Python tasks):
+**Empirical state** (v1.1.3 canonical, 60 rows on 5 Exercism Python tasks × 4 strategies × 3 seeds):
 
-- `always-cloud` (gpt-5.5): solves the agent loop cleanly (typically 4-8 LLM calls; passes 1/5 to 5/5 depending on task complexity).
-- `always-local` (qwen3-coder): often terminates after 1-3 calls without making real progress; doesn't crash but doesn't solve.
-- `heuristic` (the agent-aware strategy): routes first call → cloud (correct, planning bias), but routes post-tool-call interpretation → local (correct decision), which then 400s with the format issue → agent crashes mid-loop.
-- `cascade`: same termination pattern as `heuristic`.
+| Strategy | pass_rate | cloud / local tokens | What's happening |
+|---|---|---|---|
+| always-cloud (gpt-5.5) | **1.00** | 16K / 0 | Universal pass; gpt-5.5 drives opencode cleanly |
+| always-local (qwen3-coder:30b) | 0.00 | 0 / 2.9K | Agent loop runs but local model writes prose, not code edits |
+| **heuristic** (agent-aware) | 0.00 | 2K / 1.4K | Real hybrid: ~59% cloud / 41% local; loop completes; local turns produce prose instead of tool_calls |
+| cascade | 0.00 | 0.5K / 2.8K | Heavily local-leaning; same prose-instead-of-tool-call failure |
 
-So in v1.1, the hybrid strategies are conceptually correct but blocked by qwen3-coder's tool-message format intolerance. The publishable v1.1.1 finding is that **the agent-aware heuristic IS making the right routing decisions; the bottleneck is upstream model compatibility**, not the routing layer.
+So in v1.1.3 the hybrid **infrastructure** works correctly — `heuristic` makes the right routing decisions (first turn cloud for planning, post-tool-call local for cheap interpretation) and BOTH sides respond cleanly. The bottleneck has moved from **tool-message format** (fixed) to **local-model quality on tool-use interpretation turns**.
 
-v1.2 will add an incoming-direction normalizer to translate opencode's tool messages into a form Ollama's `qwen3-coder` accepts, unlocking real hybrid evaluation on this model.
+Concretely: when the heuristic routes a "post-tool-call interpretation" step to qwen3-coder:30b, the model often replies with friendly prose ("I see there's a file..., would you like me to...") instead of the tool_call needed to advance the agent loop. opencode's reaction is `reason: "stop"` and the agent gives up before solving the task.
+
+v1.2 candidates for unblocking: qwen3-coder:480b (larger local), DeepSeek-R1 (better tool-use), or instructing the local model with stronger "you must use tools to make progress" priming via a router-level system-prompt augmentation.
 
 ## See also
 

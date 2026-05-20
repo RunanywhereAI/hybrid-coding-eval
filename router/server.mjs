@@ -240,12 +240,77 @@ function translateForCloud(body) {
   const model = out.model || "";
   if (isReasoningModel(model)) {
     if ("max_tokens" in out && !("max_completion_tokens" in out)) {
-      out.max_completion_tokens = out.max_tokens;
+      out.max_completion_tokens = out.max_completion_tokens || out.max_tokens;
     }
     delete out.max_tokens;
     // Reasoning models only accept default temperature (1) — drop overrides.
     if ("temperature" in out && out.temperature !== 1) delete out.temperature;
     if ("top_p" in out && out.top_p !== 1) delete out.top_p;
+  }
+  return out;
+}
+
+/**
+ * Translate the OpenAI-shape request body into something Ollama's
+ * qwen3-coder template accepts.
+ *
+ * The OpenAI spec requires ``tool_calls[].function.arguments`` to be a
+ * JSON-encoded STRING (per
+ * https://platform.openai.com/docs/api-reference/chat/object). Strict
+ * clients like opencode obey this. But Ollama's qwen3-coder renderer
+ * (RENDERER qwen3-coder + PARSER qwen3-coder, baked into Ollama 0.24.x)
+ * crashes on stringified arguments with::
+ *
+ *     "Value looks like object, but can't find closing '}' symbol"
+ *
+ * It expects ``arguments`` as a JSON OBJECT in incoming messages.
+ * Bisected via the test in router/tests/ollama-tool-message.test.mjs.
+ *
+ * Symmetric inverse of normalizeToolCallsInChunk(): the response
+ * normalizer stringifies for outgoing replies; this de-stringifies for
+ * incoming requests.
+ *
+ * Returns a NEW body — does not mutate the caller's copy.
+ */
+function translateForLocal(body) {
+  if (!body || !Array.isArray(body.messages)) return body;
+  const out = { ...body, messages: [] };
+  for (const raw of body.messages) {
+    if (!raw) {
+      out.messages.push(raw);
+      continue;
+    }
+    let m = raw;
+    // (1) Tool / function / assistant messages with array content: Ollama's
+    // qwen3-coder template requires string content. OpenAI 1.x allows
+    // content: [{type:"text", text:"..."}, ...] for multipart messages.
+    // Flatten to plain string.
+    if (Array.isArray(m.content)) {
+      const flat = m.content
+        .map((p) => (typeof p === "string" ? p : (p && typeof p === "object" && typeof p.text === "string" ? p.text : "")))
+        .filter(Boolean)
+        .join("\n");
+      m = { ...m, content: flat };
+    }
+    // (2) assistant.tool_calls[].function.arguments: OpenAI spec requires
+    // JSON-encoded STRING; Ollama qwen3-coder rejects strings with "Value
+    // looks like object, but can't find closing '}' symbol". Parse back to
+    // OBJECT for the qwen3-coder renderer.
+    if (Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+      const newToolCalls = m.tool_calls.map((tc) => {
+        if (!tc?.function || tc.function.arguments == null) return tc;
+        if (typeof tc.function.arguments !== "string") return tc;
+        let parsed;
+        try {
+          parsed = JSON.parse(tc.function.arguments);
+        } catch {
+          return tc;
+        }
+        return { ...tc, function: { ...tc.function, arguments: parsed } };
+      });
+      m = { ...m, tool_calls: newToolCalls };
+    }
+    out.messages.push(m);
   }
   return out;
 }
@@ -328,6 +393,7 @@ async function handleChatCompletion(req, res) {
   // Build upstream request body — replace model name, keep everything else.
   let upstreamBody = { ...body, model: backend.model };
   if (backend.label === "cloud") upstreamBody = translateForCloud(upstreamBody);
+  else if (backend.label === "local") upstreamBody = translateForLocal(upstreamBody);
 
   // Always ask for `usage` back, even when streaming. Some backends (OpenAI)
   // require an explicit opt-in via `stream_options.include_usage`, otherwise

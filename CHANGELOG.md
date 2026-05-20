@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.1.3] — 2026-05-19
+
+The qwen3-coder ↔ opencode tool-message format issue from v1.1.2 is **fixed**. Hybrid strategies now run the agent loop end-to-end without 400 errors — the routing layer is empirically validated. The remaining 0% hybrid pass-rate is now a **model-quality gap** (qwen3-coder doesn't generate correct code edits on opencode interpretation steps), not a routing infrastructure issue.
+
+### Fixed
+- **`translateForLocal()` in `router/server.mjs`**. Two transforms applied to every request forwarded to the local backend:
+  1. `tool_calls[].function.arguments` parsed from JSON-string → JSON-object. OpenAI spec requires string; Ollama's qwen3-coder renderer requires object. Strict opencode clients send string; without this fix, every multi-turn agent request 400'd with `"Value looks like object, but can't find closing '}' symbol"`.
+  2. Multi-part `tool` / `assistant` content arrays (`[{type:"text",text:"..."},...]`) flattened to plain string. Ollama returns `"json: cannot unmarshal array into Go struct field"` otherwise.
+
+  These transforms are scoped to `choice == "local"` only — cloud (gpt-5.5) keeps the OpenAI-standard wire format.
+
+### Updated canonical findings (60-row sweep, 95% bootstrap CIs)
+
+| Strategy | pass_rate | cloud_tok (total) | local_tok (total) | Avg wall (s) |
+|---|---|---|---|---|
+| **always-cloud (gpt-5.5)** | **1.00** [1.00, 1.00] | 16,094 | 0 | 18.3 |
+| always-local (qwen3-coder:30b) | 0.00 [0.00, 0.00] | 0 | 2,916 | 34.9 |
+| **heuristic (agent-aware)** | 0.00 [0.00, 0.00] | 2,064 | 1,439 | 36.9 |
+| **cascade** | 0.00 [0.00, 0.00] | 447 | 2,774 | 35.1 |
+
+The **heuristic** strategy now actually splits the agent loop ~59/41 cloud/local — and the agent loop runs to completion (no crashes). All 60 rows produced clean data. But qwen3-coder's local-turn outputs still don't translate into successful code edits for the Exercism tasks. The bottleneck has moved from "tool-message format" to "model code-edit quality on tool-use interpretations".
+
+### Diagnostic process
+
+Bisection in `router/tests/ollama-tool-message.test.mjs`-equivalent curl probes showed:
+- ✅ user message only → 200
+- ✅ user + tools (no tool_calls history) → 200
+- ❌ user + assistant.tool_calls (string args) + tool result → 400
+- ✅ user + assistant.tool_calls (object args) + tool result → 200 ← **the fix**
+
+Confirmed against [Ollama issue #11621 (Qwen3-Coder missing Tools and FIM support in template)](https://github.com/ollama/ollama/issues/11621) and [block/goose issue #6883 (Qwen3-coder Tool Calling Fails with Many Tools via Ollama)](https://github.com/block/goose/issues/6883) which document the same `RENDERER qwen3-coder + PARSER qwen3-coder` parser limitation on Ollama 0.17–0.24.
+
+### Open for v1.2
+- **Local-model quality on tool-use steps.** qwen3-coder:30b struggles to produce tool_calls for "interpret tool result + plan next action" turns; it often replies with prose. Candidates to test: qwen3-coder:480b (cloud-grade local), DeepSeek-R1, or a thinking-mode toggle.
+- **R6 + R7 canonical sweeps** (mini-swe-agent + Aider).
+- **Broader benchmark coverage**: Category B SWE-bench Verified needs an R8 fixture-shape adapter.
+
 ## [1.1.2] — 2026-05-19
 
 Canonical v1.1.K release — Phase 8 of the v1.1 plan. Re-runs the v1.1.1 iteration sweep with 3 seeds to produce publishable bootstrap CIs.
@@ -104,7 +141,8 @@ The v0.x → v3.x progression is preserved in git history. Highlights:
 - **v2 (2026-04)** — synth-budget fix, Opus-4 judge introduced, devstral local-model swap (runs 02–03).
 - **v1 (2026-03 MVP)** — 3 routes (R1/R2/R3), 90-row dataset (run 01), the original "is hybrid worth it?" experiment.
 
-[Unreleased]: https://github.com/RunanywhereAI/hybrid-coding-eval/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/RunanywhereAI/hybrid-coding-eval/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.3
 [1.1.2]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.2
 [1.1.1]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.1
 [1.1.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.0

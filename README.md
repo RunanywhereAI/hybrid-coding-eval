@@ -57,18 +57,18 @@ $EDITOR configs/variants/26-my-model.yaml         # change models.local: to your
 
 Compare your `bootstrap_cis.json` against the canonical v1.1 baseline (download `gh release download v1.1.K -p results-v1.1.K.tar.gz`). Full walkthrough: [`docs/BENCHMARK_NEW_MODEL.md`](./docs/BENCHMARK_NEW_MODEL.md).
 
-## Headline findings (v1.1.2 canonical, R8 opencode + qwen3-coder + gpt-5.5)
+## Headline findings (v1.1.3 canonical, R8 opencode + qwen3-coder + gpt-5.5)
 
-5 Exercism Python tasks × 4 strategies × 3 seeds = 60 rows. 95% bootstrap CIs (n=15/cell). Download: `gh release download v1.1.2 -p results-v1.1.2-canonical.tar.gz`.
+5 Exercism Python tasks × 4 strategies × 3 seeds = 60 rows. 95% bootstrap CIs (n=15/cell). Download: `gh release download v1.1.3 -p results-v1.1.3-canonical.tar.gz`.
 
-| Strategy | pass_rate | cloud_fraction |
-|---|---|---|
-| always-cloud (gpt-5.5) | **1.00** [1.00, 1.00] | 1.00 |
-| always-local (qwen3-coder:30b) | 0.00 [0.00, 0.00] | 0.00 |
-| heuristic (agent-aware) | 0.00 [0.00, 0.00] | 0.50 |
-| cascade | 0.00 [0.00, 0.00] | 0.10 |
+| Strategy | pass_rate | cloud_tok | local_tok | cloud_frac (calls) |
+|---|---|---|---|---|
+| always-cloud (gpt-5.5) | **1.00** [1.00, 1.00] | 16,094 | 0 | 1.00 |
+| always-local (qwen3-coder:30b) | 0.00 [0.00, 0.00] | 0 | 2,916 | 0.00 |
+| **heuristic** (agent-aware) | 0.00 [0.00, 0.00] | 2,064 | 1,439 | 0.50 |
+| **cascade** | 0.00 [0.00, 0.00] | 447 | 2,774 | 0.10 |
 
-The routing-layer `heuristic` strategy IS making rational routing decisions (first turn cloud for planning, post-tool-call local for cheap interpretation). The 0% pass rate on hybrid is **not a routing-logic bug** — it's a model-compatibility issue: qwen3-coder + opencode tool-message format. v1.2 adds the unblocker (incoming-direction tool-message normalizer). See [`docs/AGENTIC_ROUTES.md`](./docs/AGENTIC_ROUTES.md) and `personal/iterations/v1.1.2/findings.md`.
+v1.1.3 fixed the qwen3-coder + Ollama tool-message format issue from v1.1.2 (see [CHANGELOG](./CHANGELOG.md) v1.1.3 + [docs/AGENTIC_ROUTES.md](./docs/AGENTIC_ROUTES.md)). The hybrid strategies now actually run the agent loop end-to-end with real cloud/local token splits. The remaining 0% hybrid pass-rate is now a **local-model quality gap** — qwen3-coder:30b can run the agent loop but on tool-result interpretation turns it writes prose instead of the tool_calls needed to make progress. Routing infrastructure: ✓. Local-model code-edit quality: open for v1.2.
 
 ## Headline findings (v3.3 sweep — non-agentic)
 
