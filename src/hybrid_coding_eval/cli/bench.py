@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import subprocess
 import sys
 from pathlib import Path
 
@@ -109,6 +110,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 tpc,
                 config.benchmark.categories,
             )
+
+    # Explicit task-ID whitelist (v1.3+) — scopes a sweep to a known-good
+    # subset (e.g. R7-compatible D1+D5 real_dev tasks).
+    if config.benchmark.task_ids:
+        argv += ["--task-ids", ",".join(config.benchmark.task_ids)]
 
     # Write a config-manifest alongside the run so the YAML-→actual-run
     # mapping is auditable.
@@ -510,7 +516,7 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
     else:
         venv_pip = _REPO_ROOT / ".venv" / "bin" / "pip"
         if not venv_pip.exists():
-            print(f"  ⚠ no .venv/bin/pip — set up venv first: python3.12 -m venv .venv && .venv/bin/pip install -e .")
+            print("  ⚠ no .venv/bin/pip — set up venv first: python3.12 -m venv .venv && .venv/bin/pip install -e .")
             failures.append("aider install skipped: no venv")
         else:
             print(f"  Installing aider-chat into {venv_pip.parent}…")
@@ -580,6 +586,96 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
 # ---------- sweep ---------------------------------------------------------
 
 
+def _load_dotenv(env: dict[str, str]) -> None:
+    """Merge KEY=VALUE lines from ``.env`` into ``env`` (no overwrite of
+    existing keys). Used by :func:`_spawn_router` so spawned routers see
+    ``OPEN_AI_API_KEY`` / ``OPENAI_API_KEY`` etc. without requiring the
+    parent shell to source ``.env``."""
+    dotenv_path = _REPO_ROOT / ".env"
+    if not dotenv_path.is_file():
+        return
+    try:
+        for raw in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'").strip('"')
+            if key and key not in env:
+                env[key] = value
+        if "OPEN_AI_API_KEY" in env and "OPENAI_API_KEY" not in env:
+            env["OPENAI_API_KEY"] = env["OPEN_AI_API_KEY"]
+    except OSError:
+        pass
+
+
+def _spawn_router(env_overrides: dict[str, str], port: int = 8787) -> "subprocess.Popen[bytes]":
+    """Spawn ``node router/server.mjs`` with the given env overrides.
+
+    Used by the v1.3+ ``--cascade-thresholds`` sweep so each threshold sees
+    a router instance with ``ROUTER_CASCADE_THRESHOLD`` set. Waits up to
+    20 s for ``/healthz`` to return 200 before returning. Caller is
+    responsible for killing the returned ``Popen`` when done.
+    """
+    import os as _os
+    import subprocess as _sp
+    import time as _t
+    import urllib.error as _ue
+    import urllib.request as _ur
+
+    server_mjs = _REPO_ROOT / "router" / "server.mjs"
+    if not server_mjs.is_file():
+        raise FileNotFoundError(f"router/server.mjs not found at {server_mjs}")
+
+    env = _os.environ.copy()
+    _load_dotenv(env)
+    env.update(env_overrides)
+    env["PORT"] = str(port)
+
+    log_dir = _REPO_ROOT / "results" / "router-logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"router-{port}-{int(_t.time())}.log"
+    log_file = open(log_path, "ab")
+    proc = _sp.Popen(
+        ["node", str(server_mjs)],
+        cwd=str(_REPO_ROOT / "router"),
+        env=env,
+        stdout=log_file,
+        stderr=_sp.STDOUT,
+    )
+
+    # Wait for /healthz to come up.
+    deadline = _t.time() + 20.0
+    last_err: Exception | None = None
+    while _t.time() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError(
+                f"router exited prematurely (rc={proc.returncode}); log: {log_path}"
+            )
+        try:
+            with _ur.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=1.0) as resp:
+                if resp.status == 200:
+                    print(f"  ✓ router up on :{port} (env: {env_overrides}) — log: {log_path}")
+                    return proc
+        except (_ue.URLError, ConnectionError, OSError) as exc:
+            last_err = exc
+        _t.sleep(0.25)
+    proc.terminate()
+    raise RuntimeError(f"router never healthy on :{port} after 20s: {last_err!r}")
+
+
+def _kill_router(proc: "subprocess.Popen[bytes]") -> None:
+    """Politely terminate the router proc started by :func:`_spawn_router`."""
+    if proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=5.0)
+    except Exception:  # noqa: BLE001
+        proc.kill()
+
+
 def _cmd_sweep(args: argparse.Namespace) -> int:
     """Loop a single YAML config across multiple strategies × seeds.
 
@@ -591,7 +687,19 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
 
     so the analysis layer (./bench analyze + bootstrap) can stratify by
     both axes without raw.jsonl key collisions.
+
+    v1.3+: ``--cascade-thresholds N1,N2,…`` sweeps the cascade strategy
+    only, spawning a fresh router per threshold so ROUTER_CASCADE_THRESHOLD
+    is observed. Layout becomes ``<out_dir>/cascade-threshold-<N>/seed-<seed>/``.
     """
+    cascade_thresholds_arg = getattr(args, "cascade_thresholds", None)
+    cascade_thresholds: list[int] | None = None
+    if cascade_thresholds_arg:
+        cascade_thresholds = [int(s.strip()) for s in cascade_thresholds_arg.split(",") if s.strip()]
+        if not cascade_thresholds:
+            print("error: --cascade-thresholds must list at least one integer", file=sys.stderr)
+            return 2
+
     strategies = [s.strip() for s in args.strategies.split(",") if s.strip()]
     seeds_arg = args.seeds or "42"
     seeds = [int(s.strip()) for s in seeds_arg.split(",") if s.strip()]
@@ -599,42 +707,111 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
         print("error: --strategies must list at least one strategy", file=sys.stderr)
         return 2
 
+    # --cascade-thresholds implies --strategies cascade; warn if the user
+    # passed others.
+    if cascade_thresholds is not None:
+        non_cascade = [s for s in strategies if s != "cascade"]
+        if non_cascade:
+            print(
+                f"warning: --cascade-thresholds is set; ignoring non-cascade "
+                f"strategies: {non_cascade}",
+                file=sys.stderr,
+            )
+        strategies = ["cascade"]
+
     # Resolve base_out once (so per-pass overrides redirect into subdirs).
     base_config = _load_merged(args)
     base_out = Path(args.out) if args.out else Path(base_config.out_dir)
     base_out.mkdir(parents=True, exist_ok=True)
 
-    total = len(strategies) * len(seeds)
-    print(
-        f"# bench sweep: {len(strategies)} strategies × {len(seeds)} seeds "
-        f"= {total} runs → {base_out}"
-    )
+    if cascade_thresholds is not None:
+        total = len(cascade_thresholds) * len(seeds)
+        print(
+            f"# bench sweep (cascade-threshold mode): "
+            f"{len(cascade_thresholds)} thresholds × {len(seeds)} seeds "
+            f"= {total} runs → {base_out}"
+        )
+    else:
+        total = len(strategies) * len(seeds)
+        print(
+            f"# bench sweep: {len(strategies)} strategies × {len(seeds)} seeds "
+            f"= {total} runs → {base_out}"
+        )
 
     failures: list[tuple[str, int, int]] = []
-    for i_strat, strat in enumerate(strategies, start=1):
-        for i_seed, seed in enumerate(seeds, start=1):
-            idx = (i_strat - 1) * len(seeds) + i_seed
-            sub_out = base_out / strat / f"seed-{seed}"
-            print(f"\n=== [{idx}/{total}] strategy={strat} seed={seed} → {sub_out} ===")
-            sub_args = argparse.Namespace(
-                config=args.config,
-                set=list(args.set or []) + [
-                    f"router.strategy={strat}",
-                    f"out_dir={sub_out}",
-                ],
-                variant_tag=None,
-                out=sub_out,
-                smoke=args.smoke,
-                resume=args.resume,
-                dry_run=args.dry_run,
-            )
+
+    def _run_pass(
+        pass_idx: int,
+        strat: str,
+        seed: int,
+        sub_out: Path,
+        threshold: int | None = None,
+    ) -> None:
+        tag = f"strategy={strat} seed={seed}"
+        if threshold is not None:
+            tag = f"strategy={strat} threshold={threshold} seed={seed}"
+        print(f"\n=== [{pass_idx}/{total}] {tag} → {sub_out} ===")
+        sub_args = argparse.Namespace(
+            config=args.config,
+            set=list(args.set or []) + [
+                f"router.strategy={strat}",
+                f"out_dir={sub_out}",
+            ],
+            variant_tag=None,
+            out=sub_out,
+            smoke=args.smoke,
+            resume=args.resume,
+            dry_run=args.dry_run,
+        )
+        try:
+            ret = _cmd_run(sub_args)
+        except Exception as exc:  # noqa: BLE001 — keep sweep alive
+            print(f"  ! pass crashed: {type(exc).__name__}: {exc}", file=sys.stderr)
+            ret = 99
+        if ret != 0:
+            failures.append((strat if threshold is None else f"cascade@{threshold}", seed, ret))
+
+    if cascade_thresholds is not None:
+        # Spawn a fresh router per threshold; loop seeds inside.
+        port = base_config.router.port
+        idx = 0
+        for threshold in cascade_thresholds:
+            if args.dry_run:
+                print(
+                    f"\n--- (dry-run) would spawn router with "
+                    f"ROUTER_CASCADE_THRESHOLD={threshold} ---"
+                )
+                for seed in seeds:
+                    idx += 1
+                    sub_out = base_out / f"cascade-threshold-{threshold}" / f"seed-{seed}"
+                    _run_pass(idx, "cascade", seed, sub_out, threshold=threshold)
+                continue
+            print(f"\n--- spawning router with ROUTER_CASCADE_THRESHOLD={threshold} ---")
             try:
-                ret = _cmd_run(sub_args)
-            except Exception as exc:  # noqa: BLE001 — keep sweep alive
-                print(f"  ! pass crashed: {type(exc).__name__}: {exc}", file=sys.stderr)
-                ret = 99
-            if ret != 0:
-                failures.append((strat, seed, ret))
+                proc = _spawn_router(
+                    {"ROUTER_CASCADE_THRESHOLD": str(threshold)}, port=port
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ! router spawn failed for threshold={threshold}: {exc}", file=sys.stderr)
+                for seed in seeds:
+                    idx += 1
+                    failures.append((f"cascade@{threshold}", seed, 98))
+                continue
+            try:
+                for seed in seeds:
+                    idx += 1
+                    sub_out = base_out / f"cascade-threshold-{threshold}" / f"seed-{seed}"
+                    _run_pass(idx, "cascade", seed, sub_out, threshold=threshold)
+            finally:
+                _kill_router(proc)
+                print(f"--- killed router (threshold={threshold}) ---")
+    else:
+        idx = 0
+        for strat in strategies:
+            for seed in seeds:
+                idx += 1
+                sub_out = base_out / strat / f"seed-{seed}"
+                _run_pass(idx, strat, seed, sub_out)
 
     print("\n=== sweep summary ===")
     print(f"  total passes : {total}")
@@ -768,6 +945,17 @@ def main(argv: list[str] | None = None) -> int:
         "--seeds",
         default="42",
         help="Comma-separated seed integers (default: 42).",
+    )
+    p_sweep.add_argument(
+        "--cascade-thresholds",
+        default=None,
+        help=(
+            "v1.3+: Comma-separated integers to sweep the cascade strategy's "
+            "ROUTER_CASCADE_THRESHOLD. Example: 5,10,15,20,25. Implies "
+            "--strategies cascade (other strategies are ignored). The sweep "
+            "spawns a fresh router proxy per threshold so each pass observes "
+            "the intended cutoff. Requires no router on :8787 at start time."
+        ),
     )
     p_sweep.add_argument(
         "--dry-run",

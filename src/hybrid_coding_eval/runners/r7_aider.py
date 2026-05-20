@@ -61,18 +61,83 @@ def _task_slug(task_id: str) -> str:
     return task_id.replace("/", "__").replace(" ", "_")
 
 
-def _copy_fixture(fixture_dir: Path, dst: Path) -> tuple[Path, Path]:
-    """Copy fixture into dst, returning (stub_path, test_path) inside dst."""
+_REAL_DEV_FIXTURES_ROOT: Path = (
+    _REPO_ROOT / "src" / "hybrid_coding_eval" / "benchmarks" / "real_dev" / "fixtures"
+)
+
+
+def _resolve_fixture_dir(task: Any) -> Path:
+    """Return the source fixture dir for ``task`` — handles both Exercism
+    (``fixture_dir`` Path) and real_dev (``fixtures_dir`` slug) shapes.
+    """
+    fixture_dir = getattr(task, "fixture_dir", None)
+    if isinstance(fixture_dir, Path) and fixture_dir.is_dir():
+        return fixture_dir
+    slug = getattr(task, "fixtures_dir", None)
+    if isinstance(slug, str) and slug:
+        candidate = _REAL_DEV_FIXTURES_ROOT / slug
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(
+        f"task {getattr(task, 'id', '?')!r}: no fixture_dir (Path) or fixtures_dir (slug)"
+    )
+
+
+def _find_test_path(scratch: Path, task: Any) -> Path | None:
+    """Locate the canonical test file inside ``scratch``.
+
+    Order:
+      1. If ``task.tests`` is set (real_dev shape: ``<slug>/test_*.py`` or
+         ``<slug>/_reference/test_*.py``), strip the leading slug and resolve
+         under scratch.
+      2. Exercism shape: ``*_test.py`` next to the stub.
+      3. Generic: ``test_*.py`` or ``*_test.py`` anywhere in scratch.
+    """
+    tests_attr = getattr(task, "tests", None)
+    if isinstance(tests_attr, str) and tests_attr:
+        # task.tests is "<slug>/test_x.py" relative to fixtures/. Strip slug.
+        parts = tests_attr.split("/", 1)
+        rel = parts[1] if len(parts) == 2 else tests_attr
+        candidate = scratch / rel
+        if candidate.exists():
+            return candidate
+    for p in scratch.glob("*_test.py"):
+        return p
+    for p in scratch.rglob("test_*.py"):
+        return p
+    for p in scratch.rglob("*_test.py"):
+        return p
+    return None
+
+
+def _copy_fixture(task: Any, dst: Path) -> tuple[Path, list[Path]]:
+    """Copy the task fixture into ``dst``. Returns ``(test_path, editable_files)``.
+
+    ``editable_files`` is the list of non-test .py files in the top level of
+    the fixture — these get passed to aider as the working set. For Exercism
+    that's typically one stub; for real_dev D1 it can be several.
+    """
+    src = _resolve_fixture_dir(task)
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(fixture_dir, dst)
-    # Find the two .py files: stub (no _test suffix) and test.
-    py_files = list(dst.glob("*.py"))
-    stub = next((p for p in py_files if not p.name.endswith("_test.py")), None)
-    test = next((p for p in py_files if p.name.endswith("_test.py")), None)
-    if stub is None or test is None:
-        raise FileNotFoundError(f"fixture missing stub/test in {dst}")
-    return stub, test
+    shutil.copytree(src, dst)
+    test_path = _find_test_path(dst, task)
+    if test_path is None:
+        raise FileNotFoundError(f"no test file found in {dst}")
+    editable = [
+        p for p in dst.glob("*.py")
+        if not p.name.endswith("_test.py") and not p.name.startswith("test_")
+    ]
+    # D5 tasks have solution.py / solution.sh that may not exist yet at copy
+    # time — aider needs to CREATE them. Add the bare filename as a hint.
+    if not editable:
+        run_cmd = getattr(task, "run_cmd", None) or ""
+        # crude: pick the first .py / .sh token from the run_cmd
+        for tok in run_cmd.split():
+            if tok.endswith(".py") or tok.endswith(".sh"):
+                editable = [dst / tok]
+                break
+    return test_path, editable
 
 
 def _run_tests_local(stub_dir: Path, test_path: Path) -> Quality:
@@ -137,7 +202,7 @@ def run(
 
     # 1. Copy fixture so the run is isolated.
     try:
-        stub_path, test_path = _copy_fixture(task.fixture_dir, scratch)
+        test_path, editable_files = _copy_fixture(task, scratch)
     except Exception as exc:
         return ResultRow(
             task_id=task.id,
@@ -153,11 +218,17 @@ def run(
             router_strategy=router_strategy,
         )
 
-    # 2. Build the prompt — Aider will read the stub via --file.
-    prompt = task.prompt + (
-        "\n\nImplement the function(s) in the stub so that all tests in "
-        f"{test_path.name} pass. Edit only the stub file."
-    )
+    # 2. Build the prompt. For Exercism we add a hint about the stub file;
+    # for real_dev (D1/D5) tasks the prompt is self-contained.
+    if len(editable_files) == 1 and editable_files[0].name not in ("solution.py", "solution.sh"):
+        # Single-file Exercism stub.
+        prompt = task.prompt + (
+            "\n\nImplement the function(s) in the stub so that all tests in "
+            f"{test_path.name} pass. Edit only the stub file."
+        )
+    else:
+        # Multi-file real_dev task: prompt is self-contained.
+        prompt = task.prompt
 
     bench_run_id = generate_run_id()
     api_base = proxy_url.rstrip("/") + "/v1"
@@ -186,7 +257,7 @@ def run(
         "--no-pretty",
         "--message",
         prompt,
-        str(stub_path.name),  # relative to cwd (=scratch)
+        *[str(p.name) for p in editable_files],  # all editable files (relative to cwd = scratch)
     ]
 
     env = os.environ.copy()
@@ -220,13 +291,16 @@ def run(
     wall_ms = int((time.perf_counter() - t0) * 1000)
     finished_at = datetime.now(timezone.utc)
 
-    # 4. Score by running pytest on the (possibly modified) stub.
+    # 4. Score by running pytest on the (possibly modified) editable files.
     quality = _run_tests_local(scratch, test_path)
 
-    # Save the modified stub as the canonical output.
+    # Save the primary edited file as the canonical output. For multi-file
+    # tasks we save the first editable file; the full scratch dir stays
+    # under outputs/ for inspection.
     answer_path = run_dir / "answer.py"
-    if stub_path.exists():
-        answer_path.write_text(stub_path.read_text(encoding="utf-8"), encoding="utf-8")
+    primary = editable_files[0] if editable_files else None
+    if primary and primary.exists():
+        answer_path.write_text(primary.read_text(encoding="utf-8"), encoding="utf-8")
     else:
         answer_path.write_text("", encoding="utf-8")
 

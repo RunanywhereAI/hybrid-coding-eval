@@ -186,6 +186,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--task-ids",
+        type=_csv,
+        default=None,
+        help="Comma-separated explicit task-ID whitelist (e.g. real-dev/d1-rate-limit). "
+             "When set, only these tasks are included in the plan.",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="Print planned work and exit without running.",
@@ -287,11 +294,13 @@ def main(argv: list[str] | None = None) -> int:
     outputs_dir = out_dir / "outputs"
 
     # Build the plan first so --dry-run can show it without touching disk.
+    task_ids = getattr(args, "task_ids", None) or None
     plan = build_task_plan(
         categories=args.categories,
         routes=args.routes,
         smoke=args.smoke,
         tasks_cap=args.tasks,
+        task_ids=task_ids,
     )
 
     if args.dry_run:

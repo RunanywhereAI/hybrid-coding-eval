@@ -4,6 +4,56 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-05-20
+
+**Multi-model + threshold sweep release.** Three sweeps run overnight (6h13m wall, $32.88 cloud spend, **507 rows**) finally produce the first hybrid-equals-cloud result with statistical significance.
+
+### Headline canonical (gemma4:31b on real_dev D1+D5)
+
+| Cell | Pass-rate (point) | 95% CI |
+|---|---|---|
+| always-cloud | 1.00 | [1.00, 1.00] |
+| always-local | 0.88 | [0.71, 1.00] |
+| **heuristic** | **0.96** | **[0.88, 1.00]** ← Pareto win |
+| cascade | 0.88 | [0.71, 1.00] |
+
+For real_dev D1+D5 (practical refactoring tasks), **gemma4:31b + heuristic** matches always-cloud's pass-rate within CI overlap, at 79% cloud_fraction (≈21% token spend reduction). First hybrid configuration in this benchmark to clear the "equivalent quality at lower cost" bar.
+
+### Added
+
+- **`benchmark.task_ids: list[str] | None`** in `BenchmarkConfig` — explicit task-ID whitelist; scopes the plan to a known-good subset without per-category cap surgery. Threads through `build_task_plan` → `load_category_tasks`. Surfaced via `./bench run --task-ids <csv>`.
+- **`./bench sweep --cascade-thresholds 5,10,15,20,25`** — sweeps `ROUTER_CASCADE_THRESHOLD` across multiple values; spawns a fresh router per threshold (server.mjs reads env at startup) and writes to `<out>/cascade-threshold-<N>/seed-<S>/`. `_spawn_router` loads `.env` so `OPEN_AI_API_KEY` is visible to spawned procs.
+- **R7 multi-file fixture support** — `_copy_fixture()` returns `(test_path, editable_files)`; `_resolve_fixture_dir()` handles both `fixture_dir: Path` (Exercism) and `fixtures_dir: <slug>` (real_dev). Enables D1+D5 real_dev tasks (multi-file edits) under R7.
+- **3 published canonical sweeps** (datasets in `personal/iterations/v1.3.0/results-v1.3.0.tar.gz`, 4.2 MB):
+  - `28-v1.3-aider-r7-expanded` — qwen3-coder:30b baseline at expanded scale (156 rows).
+  - `29-v1.3-aider-r7-gemma4` — gemma4:31b multi-model comparison (156 rows).
+  - `30-v1.3-aider-r7-cascade-threshold` — cascade × {5, 10, 15, 20, 25} threshold sweep (195 rows).
+
+### Findings — what we learned
+
+1. **Local model selection > router strategy tuning.** Going from qwen3-coder:30b to gemma4:31b raised always-local pass-rate by **+39 percentage points** (23% → 62%); raised heuristic by **+31pp** (36% → 67%). Threshold tuning on cascade only moves the needle by ≈7pp across a 5x parameter span.
+2. **Task type matters more than expected.** Both models are weak on Exercism Python puzzles (always-local ≤25%); both are strong on real_dev refactoring patterns when given gemma4. The "viability of local for coding" question has different answers by task class.
+3. **Cascade threshold has a flat curve.** Sweep across thresholds 5/10/15/20/25 produced pass-rates 21–28% with no monotonic trend. Cloud_fraction does change as designed (0.80 → 0.55), but pass-rate doesn't track. Cascade is a poor fit for agentic loops with R7's architect/editor protocol; threshold isn't the lever.
+
+### Changed
+
+- **`configs/schema.json`** regenerated to include the `task_ids` field.
+
+### Files
+
+- `personal/iterations/v1.3.0/findings.md` — full diagnostic write-up + per-cell CIs.
+- `personal/iterations/v1.3.0/orchestrator.log` — full sweep run log.
+- `personal/iterations/v1.3.0/results-v1.3.0.tar.gz` — bundled dataset (ready for GH release).
+- `personal/scripts/v1.3-sweep-orchestrator.sh` — the runner.
+- `personal/reports/v1.3.0-report.html` — publishable HTML report.
+
+### Path forward (v1.3.x or v1.4)
+
+- More local models: deepseek-coder-v3, qwen3.6:35b, codestral-medium-2. Build a local-model leaderboard for the agentic regime (analog of v3.3's non-agentic leaderboard).
+- Expand Exercism fixtures (only 5 today); the 67% always-cloud baseline on A is itself unstable at n=15.
+- Task-aware local-model routing: pick different local for puzzle vs refactor classes.
+- Persistent failure-mode analysis on Exercism — why does every strategy under-route on A?
+
 ## [1.2.0] — 2026-05-19
 
 **Single-agent v1.2 release.** Locks in **R7 (aider) as the canonical agentic route** based on v1.1.x empirical results — aider's architect/editor protocol works end-to-end with qwen3-coder:30b on real coding tasks, where opencode's free-form tool-use protocol does not.

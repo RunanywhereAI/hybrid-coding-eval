@@ -144,18 +144,33 @@ def build_task_plan(
     routes: Iterable[str],
     smoke: bool,
     tasks_cap: int | None,
+    task_ids: Iterable[str] | None = None,
 ) -> list[TaskPlan]:
     """Enumerate ``(category, source, task, route)`` tuples in deterministic order.
 
     Order: by category letter, then by task index within the category, then by
     route order as given in ``routes``.
+
+    ``task_ids`` (optional): if provided, tasks whose ``id`` is not in this
+    whitelist are dropped after loading. Useful for scoping a sweep to a
+    specific set of R7-compatible D1+D5 tasks (v1.3+).
     """
     cats = list(categories)
     rts = list(routes)
+    id_filter = set(task_ids) if task_ids else None
     plan: list[TaskPlan] = []
     for cat in cats:
-        pairs = load_category_tasks(cat, smoke=smoke, tasks_cap=tasks_cap)
+        # When task_ids is set, bypass tasks_cap at load time — the cap is
+        # uniform-per-category and would slice off tasks before the
+        # whitelist filter ran (v1.3 expanded sweep wants 8 D-tasks but
+        # real_dev has 20 total, so cap=8 picks arbitrary 8 most of which
+        # aren't in the whitelist). Load all, then filter, then trust the
+        # whitelist as the cap.
+        cap_for_load = None if id_filter is not None else tasks_cap
+        pairs = load_category_tasks(cat, smoke=smoke, tasks_cap=cap_for_load)
         for source, task in pairs:
+            if id_filter is not None and getattr(task, "id", None) not in id_filter:
+                continue
             for route in rts:
                 plan.append(
                     TaskPlan(category=cat, source=source, task=task, route=route)

@@ -122,6 +122,16 @@ class BenchmarkConfig(BaseModel):
         default=None,
         description="Cap N per category, e.g. {'A': 3, 'B': 3, 'C': 3}.",
     )
+    task_ids: list[str] | None = Field(
+        default=None,
+        description=(
+            "Optional explicit task-ID whitelist. When set, only tasks whose "
+            "``id`` field matches one of these strings are included in the "
+            "plan — `categories` + `tasks_per_category` still apply for which "
+            "sources to load FROM, but the final selection is filtered to "
+            "this list. v1.3+: use to scope to R7-compatible D1+D5 tasks."
+        ),
+    )
     seeds: list[int] = Field(default=[42])
     smoke: bool = Field(
         default=False,

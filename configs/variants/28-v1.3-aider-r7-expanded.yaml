@@ -1,0 +1,69 @@
+# v1.3 R7 Aider expanded task set — tighter CIs.
+#
+# Hypothesis under test (v1.2 → v1.3):
+#   With 5 tasks × 3 seeds, v1.2.0's heuristic CI for pass-rate was
+#   [13%, 67%] which overlaps always-cloud's [33%, 80%]. Expanding to
+#   13 tasks × 3 seeds (≈ 2.6× the trials) should narrow each CI by
+#   roughly sqrt(2.6) ≈ 1.6×, which may suffice to separate them.
+#
+# Task mix:
+#   - X (Exercism Python): 5 tasks (grep, list-ops, phone-number,
+#                                   robot-name, pig-latin)
+#   - D (real_dev D1+D5):  8 tasks (4 D1 + 4 D5; R7-compatible only)
+#   Total: 13 tasks × 3 seeds × 4 strategies = 156 rows
+#
+# `task_ids` whitelist scopes to D1+D5 — real_dev D2/D3/D4 are not R7-
+# compatible (multi-file refactors / external dependencies). v1.3+
+# `task_shapes`/`task_ids` filtering lives in core/experiment.py.
+
+# yaml-language-server: $schema=../schema.json
+
+variant_tag: v1.3-aider-r7-expanded
+out_dir: results/runs/28-v1.3-aider-r7-expanded
+
+models:
+  cloud: gpt-5.5
+  local: qwen3-coder:30b
+
+router:
+  strategy: heuristic
+  port: 8787
+  banner: true
+
+benchmark:
+  categories: [X, D]
+  routes: [R7]
+  seeds: [42, 7, 13]
+  smoke: false
+  tasks_per_category:
+    X: 5
+    D: 8
+  task_ids:
+    # Exercism Python — all 5 currently checked in
+    - exercism-python/grep
+    - exercism-python/list-ops
+    - exercism-python/phone-number
+    - exercism-python/robot-name
+    - exercism-python/pig-latin
+    # real_dev D1 (single-file feature)
+    - real-dev/d1-rate-limit
+    - real-dev/d1-retry-decorator
+    - real-dev/d1-json-schema
+    - real-dev/d1-auth-login
+    # real_dev D5 (script / small util)
+    - real-dev/d5-todo-counter
+    - real-dev/d5-csv-dedupe
+    - real-dev/d5-log-errors-today
+    - real-dev/d5-env-var-redactor
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  judge_temperature: 0.0
+  swebench_image: hybrid-eval-python:latest
+
+resume: false

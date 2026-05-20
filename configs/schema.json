@@ -62,6 +62,22 @@
           "description": "Cap N per category, e.g. {'A': 3, 'B': 3, 'C': 3}.",
           "title": "Tasks Per Category"
         },
+        "task_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional explicit task-ID whitelist. When set, only tasks whose ``id`` field matches one of these strings are included in the plan — `categories` + `tasks_per_category` still apply for which sources to load FROM, but the final selection is filtered to this list. v1.3+: use to scope to R7-compatible D1+D5 tasks.",
+          "title": "Task Ids"
+        },
         "seeds": {
           "default": [
             42
@@ -293,6 +309,7 @@
           "R4"
         ],
         "tasks_per_category": null,
+        "task_ids": null,
         "seeds": [
           42
         ],

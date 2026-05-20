@@ -32,6 +32,7 @@ results/runs/*
 EXTERNAL/minions/
 EXTERNAL/*/.git/
 vendor/minions/
+vendor/opencode/
 vendor/*/.git/
 
 # --- router telemetry ---
