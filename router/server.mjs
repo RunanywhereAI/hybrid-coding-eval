@@ -975,6 +975,15 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && url === "/v1/chat/completions") return handleChatCompletion(req, res);
   if (req.method === "GET" && url === "/v1/models") return handleModels(req, res);
   if (req.method === "GET" && (url === "/healthz" || url === "/health")) return handleHealth(req, res);
+  // Stub for Ollama's /api/tags (cline 3.0.9 issues this before the first
+  // /v1/chat/completions call). Our router is OpenAI-compat, not Ollama-
+  // native, so a 404 here is non-fatal but noisy in logs. Returning an
+  // empty models list lets the caller proceed silently.
+  if (req.method === "GET" && url === "/api/tags") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ models: [] }));
+    return;
+  }
   if (req.method === "GET" && url === "/") {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end(
@@ -982,7 +991,8 @@ const server = http.createServer(async (req, res) => {
         `endpoints:\n` +
         `  POST /v1/chat/completions   (OpenAI-compatible)\n` +
         `  GET  /v1/models             (lists routing strategies as model IDs)\n` +
-        `  GET  /healthz               (status of local + cloud backends)\n\n` +
+        `  GET  /healthz               (status of local + cloud backends)\n` +
+        `  GET  /api/tags              (Ollama-compat stub: returns empty list)\n\n` +
         `strategies (${Object.keys(STRATEGIES).length}): ${Object.keys(STRATEGIES).join(", ")}\n\n` +
         `local : ${LOCAL_BASE} model=${LOCAL_MODEL}\n` +
         `cloud : ${CLOUD_BASE} model=${CLOUD_MODEL} key=${CLOUD_API_KEY ? "present" : "MISSING"}\n` +
