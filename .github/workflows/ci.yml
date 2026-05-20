@@ -36,6 +36,9 @@ jobs:
           mkdir -p vendor
           git clone --depth 1 https://github.com/HazyResearch/minions.git vendor/minions
 
+      - name: Install Minions transitive deps (mcp imported at module load)
+        run: pip install "mcp>=1.0,<2"
+
       - name: Lint with ruff
         run: ruff check src/ tests/
 
