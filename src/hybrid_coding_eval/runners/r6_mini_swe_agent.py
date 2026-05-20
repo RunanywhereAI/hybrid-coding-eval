@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -161,9 +162,20 @@ def run(
     # Pass TWO -c flags: the package's default swebench.yaml (system +
     # instance templates) first, then our model-override yaml. mini-extra
     # merges configs in order, so ours wins on the keys it sets.
+    #
+    # Prefer .venv/bin/mini-extra when present (the v1.4 bench setup
+    # installs ``mini-swe-agent`` into the repo's venv); fall back to
+    # PATH lookup. Without this, ``.venv/bin/python -m
+    # hybrid_coding_eval.cli.run`` would fail because activating a venv's
+    # python does NOT prepend its bin/ to PATH automatically.
+    _venv_mini_extra = _REPO_ROOT / ".venv" / "bin" / "mini-extra"
+    mini_extra_bin = (
+        str(_venv_mini_extra) if _venv_mini_extra.exists()
+        else (shutil.which("mini-extra") or "mini-extra")
+    )
     default_swebench_yaml = _default_swebench_yaml()
     cmd = [
-        "mini-extra",
+        mini_extra_bin,
         "swebench-single",
         "--yolo",
         "--subset",

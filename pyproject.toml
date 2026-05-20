@@ -27,6 +27,13 @@ dev = [
     "pytest>=8.3,<9",
     "ruff>=0.5,<1",
 ]
+# Python-side agentic runners (R6 mini-swe-agent, R7 aider). R8/R9/R10
+# ship as separate Node/npm CLIs and are installed by ``bench setup``.
+# Install with: ``pip install -e ".[agents]"``.
+agents = [
+    "mini-swe-agent>=2.2,<3",
+    "aider-chat",
+]
 
 [project.scripts]
 bench = "hybrid_coding_eval.cli.bench:main"
