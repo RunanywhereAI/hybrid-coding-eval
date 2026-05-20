@@ -253,6 +253,14 @@ def _runner_for(route: str) -> Callable[..., ResultRow]:
         from hybrid_coding_eval.runners import r8_opencode
 
         return r8_opencode.run
+    if route in ("R9", "claude-code"):
+        from hybrid_coding_eval.runners import r9_claude_code
+
+        return r9_claude_code.run
+    if route in ("R10", "cline"):
+        from hybrid_coding_eval.runners import r10_cline
+
+        return r10_cline.run
     raise ValueError(f"unknown route {route!r}")
 
 
