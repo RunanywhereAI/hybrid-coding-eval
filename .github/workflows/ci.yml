@@ -31,14 +31,6 @@ jobs:
           pip install -r requirements.txt
           pip install -e ".[dev]"
 
-      - name: Clone vendored Minions (R4 + R5 routes need it at import time)
-        run: |
-          mkdir -p vendor
-          git clone --depth 1 https://github.com/HazyResearch/minions.git vendor/minions
-
-      - name: Install Minions transitive deps imported at module load
-        run: pip install "mcp>=1.0,<2" "rank_bm25>=0.2,<1" "requests>=2.32,<3"
-
       - name: Lint with ruff
         run: ruff check src/ tests/
 

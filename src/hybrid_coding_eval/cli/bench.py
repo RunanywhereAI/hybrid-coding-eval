@@ -24,7 +24,9 @@ import json
 import logging
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from hybrid_coding_eval.core.config.loader import dump_schema_json, load_config
 from hybrid_coding_eval.core.config.resolve import apply_overrides
@@ -676,6 +678,73 @@ def _kill_router(proc: "subprocess.Popen[bytes]") -> None:
         proc.kill()
 
 
+def _is_router_up(port: int) -> bool:
+    """Return True if a router is already reachable on ``port``.
+
+    Used to decide whether ``bench sweep`` should auto-spawn a router or
+    defer to an already-running instance (the user's choice via
+    ``--external-router`` or an inadvertent leftover).
+    """
+    import urllib.error as _ue
+    import urllib.request as _ur
+
+    try:
+        with _ur.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=0.5) as resp:
+            return resp.status == 200
+    except (_ue.URLError, ConnectionError, OSError):
+        return False
+
+
+@contextmanager
+def _router_for_model(
+    local_model: str,
+    port: int,
+    *,
+    external: bool = False,
+    extra_env: dict[str, str] | None = None,
+) -> Iterator[None]:
+    """Context manager that yields with a healthy router on ``port``.
+
+    If ``external`` is True OR a router is already healthy on the port,
+    yields without spawning (caller-managed lifecycle). Otherwise spawns
+    ``node router/server.mjs`` with ``LOCAL_MODEL=<local_model>`` and any
+    ``extra_env`` (e.g. ``ROUTER_CASCADE_THRESHOLD``), waits for /healthz,
+    and tears down on exit.
+
+    This is the shared lifecycle helper for ``bench sweep`` — both the
+    regular path and the ``--cascade-thresholds`` path use it.
+    """
+    if external:
+        if not _is_router_up(port):
+            print(
+                f"  ! --external-router set but no router responding on :{port}; "
+                f"continuing anyway (passes may fail).",
+                file=sys.stderr,
+            )
+        else:
+            print(f"  ✓ using external router on :{port}")
+        yield
+        return
+
+    if _is_router_up(port):
+        print(
+            f"  ✓ router already up on :{port} — not respawning "
+            f"(use --external-router to silence this auto-spawn check)"
+        )
+        yield
+        return
+
+    env_overrides: dict[str, str] = {"LOCAL_MODEL": local_model}
+    if extra_env:
+        env_overrides.update(extra_env)
+    proc = _spawn_router(env_overrides, port=port)
+    try:
+        yield
+    finally:
+        _kill_router(proc)
+        print(f"--- killed router (LOCAL_MODEL={local_model}) ---")
+
+
 def _cmd_sweep(args: argparse.Namespace) -> int:
     """Loop a single YAML config across multiple strategies × seeds.
 
@@ -691,6 +760,11 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
     v1.3+: ``--cascade-thresholds N1,N2,…`` sweeps the cascade strategy
     only, spawning a fresh router per threshold so ROUTER_CASCADE_THRESHOLD
     is observed. Layout becomes ``<out_dir>/cascade-threshold-<N>/seed-<seed>/``.
+
+    v1.4+: the sweep auto-spawns ``node router/server.mjs`` with
+    ``LOCAL_MODEL=<config.models.local>`` (so the user no longer needs
+    a separate ``(cd router && ./start.sh) &`` terminal) and tears it
+    down on completion. Pass ``--external-router`` to opt out.
     """
     cascade_thresholds_arg = getattr(args, "cascade_thresholds", None)
     cascade_thresholds: list[int] | None = None
@@ -771,14 +845,19 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
         if ret != 0:
             failures.append((strat if threshold is None else f"cascade@{threshold}", seed, ret))
 
+    port = base_config.router.port
+    local_model = base_config.models.local
+    external_router = bool(getattr(args, "external_router", False))
+
     if cascade_thresholds is not None:
         # Spawn a fresh router per threshold; loop seeds inside.
-        port = base_config.router.port
+        # Each pass injects ROUTER_CASCADE_THRESHOLD on top of LOCAL_MODEL.
         idx = 0
         for threshold in cascade_thresholds:
             if args.dry_run:
                 print(
                     f"\n--- (dry-run) would spawn router with "
+                    f"LOCAL_MODEL={local_model} "
                     f"ROUTER_CASCADE_THRESHOLD={threshold} ---"
                 )
                 for seed in seeds:
@@ -786,32 +865,61 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
                     sub_out = base_out / f"cascade-threshold-{threshold}" / f"seed-{seed}"
                     _run_pass(idx, "cascade", seed, sub_out, threshold=threshold)
                 continue
-            print(f"\n--- spawning router with ROUTER_CASCADE_THRESHOLD={threshold} ---")
+            print(
+                f"\n--- spawning router with LOCAL_MODEL={local_model} "
+                f"ROUTER_CASCADE_THRESHOLD={threshold} ---"
+            )
             try:
-                proc = _spawn_router(
-                    {"ROUTER_CASCADE_THRESHOLD": str(threshold)}, port=port
-                )
+                with _router_for_model(
+                    local_model,
+                    port,
+                    external=external_router,
+                    extra_env={"ROUTER_CASCADE_THRESHOLD": str(threshold)},
+                ):
+                    for seed in seeds:
+                        idx += 1
+                        sub_out = base_out / f"cascade-threshold-{threshold}" / f"seed-{seed}"
+                        _run_pass(idx, "cascade", seed, sub_out, threshold=threshold)
             except Exception as exc:  # noqa: BLE001
-                print(f"  ! router spawn failed for threshold={threshold}: {exc}", file=sys.stderr)
+                print(
+                    f"  ! router spawn failed for threshold={threshold}: {exc}",
+                    file=sys.stderr,
+                )
                 for seed in seeds:
                     idx += 1
                     failures.append((f"cascade@{threshold}", seed, 98))
                 continue
-            try:
+    else:
+        # Regular sweep — auto-spawn one router for the whole sweep with the
+        # config's local model so every (strategy, seed) pass sees the same
+        # backend without manual router lifecycle. Skipped if --external-router
+        # is set OR a router is already healthy on the port.
+        if args.dry_run:
+            print(
+                f"\n--- (dry-run) would spawn router with LOCAL_MODEL={local_model} ---"
+            )
+            idx = 0
+            for strat in strategies:
                 for seed in seeds:
                     idx += 1
-                    sub_out = base_out / f"cascade-threshold-{threshold}" / f"seed-{seed}"
-                    _run_pass(idx, "cascade", seed, sub_out, threshold=threshold)
-            finally:
-                _kill_router(proc)
-                print(f"--- killed router (threshold={threshold}) ---")
-    else:
-        idx = 0
-        for strat in strategies:
-            for seed in seeds:
-                idx += 1
-                sub_out = base_out / strat / f"seed-{seed}"
-                _run_pass(idx, strat, seed, sub_out)
+                    sub_out = base_out / strat / f"seed-{seed}"
+                    _run_pass(idx, strat, seed, sub_out)
+        else:
+            try:
+                with _router_for_model(local_model, port, external=external_router):
+                    idx = 0
+                    for strat in strategies:
+                        for seed in seeds:
+                            idx += 1
+                            sub_out = base_out / strat / f"seed-{seed}"
+                            _run_pass(idx, strat, seed, sub_out)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ! router spawn failed: {exc}", file=sys.stderr)
+                # The context manager raised before any pass could run —
+                # mark every (strategy, seed) as failed for the summary.
+                for strat in strategies:
+                    for seed in seeds:
+                        failures.append((strat, seed, 98))
 
     print("\n=== sweep summary ===")
     print(f"  total passes : {total}")
@@ -954,7 +1062,18 @@ def main(argv: list[str] | None = None) -> int:
             "ROUTER_CASCADE_THRESHOLD. Example: 5,10,15,20,25. Implies "
             "--strategies cascade (other strategies are ignored). The sweep "
             "spawns a fresh router proxy per threshold so each pass observes "
-            "the intended cutoff. Requires no router on :8787 at start time."
+            "the intended cutoff."
+        ),
+    )
+    p_sweep.add_argument(
+        "--external-router",
+        action="store_true",
+        help=(
+            "Opt out of the v1.4 auto-spawn-router behavior. By default, "
+            "`bench sweep` reads models.local from the config and spawns "
+            "`node router/server.mjs` with LOCAL_MODEL=<model>, tearing it "
+            "down on completion. Pass this flag to manage the router "
+            "yourself (e.g. `(cd router && ./start.sh) &` in another shell)."
         ),
     )
     p_sweep.add_argument(
