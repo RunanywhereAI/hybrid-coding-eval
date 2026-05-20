@@ -8,8 +8,6 @@ Subcommands:
 - ``bench rescore RESULTS_DIR`` → post-sweep SWE-bench rescoring.
 - ``bench rejudge RESULTS_DIR`` → post-sweep Opus re-judge.
 - ``bench analyze RESULTS_DIR`` → aggregate → ARQGC → charts.
-- ``bench report <article|appendix-tasks|appendix-scenarios|appendix-routes|all>``
-  → regenerate the publish surface under ``reports/``.
 - ``bench schema [--out configs/schema.json]`` → dump JSON Schema.
 
 Every subcommand delegates to an existing module. The dispatcher only
@@ -257,23 +255,6 @@ def _cmd_token_budget(args: argparse.Namespace) -> int:
     print(f"wrote {out_md} ({len(df)} rows × {len(scenarios)} scenarios)")
     print(f"wrote {out_csv}")
     return 0
-
-
-# ---------- subcommand: report --------------------------------------------
-
-
-def _cmd_report(args: argparse.Namespace) -> int:
-    # Lazy import; T-19+T-20 will populate hybrid_coding_eval.cli.report.
-    try:
-        from hybrid_coding_eval.cli import report as report_mod
-    except ModuleNotFoundError:
-        print(
-            "report generator not yet implemented "
-            "(added by T-19). Falling back to printing the plan.",
-            file=sys.stderr,
-        )
-        return 2
-    return int(report_mod.main([args.what]) or 0)
 
 
 # ---------- subcommand: schema --------------------------------------------
@@ -610,6 +591,31 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
             except subprocess.CalledProcessError as exc:
                 print(f"  ⚠ aider install failed: {exc}")
                 failures.append("aider install failed")
+
+    # 4b. mini-swe-agent (R6 route — the bash-only ReAct agent that is the
+    # SWE-bench Verified apples-to-apples reference). Installed into the
+    # repo's venv so the R6 runner's ``.venv/bin/mini-extra`` fallback
+    # picks it up without needing the system PATH to include venv/bin.
+    print("\n[4b/7] mini-swe-agent (R6 route — bash-only ReAct, SWE-bench reference)")
+    mini_extra_bin = _REPO_ROOT / ".venv" / "bin" / "mini-extra"
+    if mini_extra_bin.exists():
+        print(f"  ✓ mini-swe-agent already installed at {mini_extra_bin}")
+    else:
+        venv_pip = _REPO_ROOT / ".venv" / "bin" / "pip"
+        if not venv_pip.exists():
+            print("  ⚠ no .venv/bin/pip — set up venv first: python3.12 -m venv .venv && .venv/bin/pip install -e .")
+            failures.append("mini-swe-agent install skipped: no venv")
+        else:
+            print(f"  Installing mini-swe-agent>=2.2,<3 into {venv_pip.parent}…")
+            try:
+                subprocess.run(
+                    [str(venv_pip), "install", "-q", "mini-swe-agent>=2.2,<3"],
+                    check=True,
+                )
+                print(f"  ✓ mini-swe-agent installed: {mini_extra_bin}")
+            except subprocess.CalledProcessError as exc:
+                print(f"  ⚠ mini-swe-agent install failed: {exc}")
+                failures.append("mini-swe-agent install failed")
 
     # 5. Opencode fork (R8 route — EXPERIMENTAL in v1.2).
     # Skipped by default in v1.2. Set BENCH_SETUP_OPENCODE=1 to enable.
@@ -1109,16 +1115,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Comma-separated scenario names (default: 6 headline scenarios).",
     )
     p_tb.set_defaults(func=_cmd_token_budget)
-
-    p_report = sub.add_parser(
-        "report", help="Regenerate reports/ARTICLE, APPENDICES, etc."
-    )
-    p_report.add_argument(
-        "what",
-        choices=["article", "appendix-tasks", "appendix-scenarios", "appendix-routes", "all"],
-        help="Which report artefact to render.",
-    )
-    p_report.set_defaults(func=_cmd_report)
 
     p_schema = sub.add_parser("schema", help="Dump JSON Schema for BenchConfig.")
     p_schema.add_argument("--out", type=Path, default=None)

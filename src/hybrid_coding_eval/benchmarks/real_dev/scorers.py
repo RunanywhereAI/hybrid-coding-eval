@@ -386,60 +386,6 @@ def _score_d2(task: Task, model_output: str) -> Quality:
 
 
 # ---------------------------------------------------------------------------
-# D3 / D4 — LLM-judge refactor & review
-# ---------------------------------------------------------------------------
-
-
-def _read_gold_exemplar(task: Task) -> str:
-    """Return the concatenated gold-exemplar text for a D3 or D4 task.
-
-    - D3 ``_reference/`` holds the full post-refactor file set. We emit
-      them concatenated under ``### <relpath>`` headers, matching the
-      prompt's "return the full contents of every file" instruction, so
-      the judge sees a like-for-like comparison.
-    - D4 ``_reference/`` holds exactly ``gold_review.md`` — the judge
-      compares the model's review markdown to it directly.
-    """
-    if not task.fixtures_dir:
-        return ""
-    ref_dir = _FIXTURES_ROOT / task.fixtures_dir / _REFERENCE_SUBDIR
-    if not ref_dir.is_dir():
-        return ""
-
-    if task.shape == "D4":
-        gold = ref_dir / "gold_review.md"
-        if gold.is_file():
-            return gold.read_text(encoding="utf-8")
-        # Fall through to a generic concat if conventional file is absent.
-
-    # D3 (or D4 fallback): concat every file under _reference with headers.
-    parts: list[str] = []
-    for child in sorted(ref_dir.rglob("*")):
-        if not child.is_file() or child.name == ".gitkeep":
-            continue
-        rel = child.relative_to(ref_dir).as_posix()
-        try:
-            body = child.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        parts.append(f"### {rel}\n```\n{body.rstrip()}\n```")
-    return "\n\n".join(parts)
-
-
-def _score_d3_d4(task: Task, model_output: str) -> Quality:
-    # v1.4: llm_judge was deleted as part of the agentic cleanup. D3/D4
-    # tasks (refactor / code-review) now degrade to an unknown Quality
-    # until a replacement scoring path lands. The legacy lazy import is
-    # preserved as a placeholder so any reintroduction reuses the same
-    # call site.
-    logger.warning(
-        "D3/D4 task %s: scoring deferred (llm_judge removed in v1.4)",
-        task.id,
-    )
-    return _unknown_quality()
-
-
-# ---------------------------------------------------------------------------
 # D5 — script
 # ---------------------------------------------------------------------------
 
@@ -503,10 +449,17 @@ def score(
         return _score_d1(task, model_output)
     if task.shape == "D2":
         return _score_d2(task, model_output)
-    if task.shape == "D3":
-        return _score_d3_d4(task, model_output)
-    if task.shape == "D4":
-        return _score_d3_d4(task, model_output)
+    if task.shape in ("D3", "D4"):
+        # v1.4: llm_judge was deleted as part of the agentic cleanup, so
+        # D3 (refactor) and D4 (code-review) scoring is deferred — the
+        # row records an all-None Quality and aggregators see "not graded"
+        # rather than miscounting as a failure.
+        logger.warning(
+            "%s task %s: scoring deferred (llm_judge removed in v1.4)",
+            task.shape,
+            task.id,
+        )
+        return _unknown_quality()
     if task.shape == "D5":
         return _score_d5(task, model_output)
     # Shouldn't reach here — the adapter rejects unknown shapes.
