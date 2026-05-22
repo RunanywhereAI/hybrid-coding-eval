@@ -1,32 +1,50 @@
-# Reproducing the hybrid-coding-eval v3 sweep
+# Reproducing hybrid-coding-eval v1.4
 
-**Copy-paste step-by-step instructions for reproducing the v3 benchmark on a fresh machine.** Every command below has been verified against the current codebase. If one fails, consult [§13 Troubleshooting](#13-troubleshooting).
+**Copy-paste step-by-step instructions for reproducing the v1.4 canonical sweep on a fresh machine.** Every command below is verified against the current codebase. If one fails, consult [§13 Troubleshooting](#13-troubleshooting).
 
-See [`METHODOLOGY.md`](./METHODOLOGY.md) for *why* we chose these tasks, routes, and scoring pipelines. This document is the *how*.
+See [`METHODOLOGY.md`](./METHODOLOGY.md) for *why* we chose these tasks, agents, and scoring pipelines. This document is the *how*.
 
-> **Status (2026-05-11).** This document covers the **v3 sweep**: 250 rows (50 unique tasks × 5 routes × 1 seed). See [`../results/runs/07-v3-devstral-all-routes/`](../results/runs/07-v3-devstral-all-routes/) for the canonical dataset. For the MVP (3 routes, 90 rows), see [`../results/REPORT_v1_mvp.md`](../results/REPORT_v1_mvp.md).
+> **Status:** This document covers the **v1.4 canonical sweep**: 5 agentic routes (R6..R10) × 8 strategies × 3 local models × 18 tasks × 3 seeds. See [`release-notes/v1.4.0.md`](./release-notes/v1.4.0.md) for the published headline numbers and `gh release download v1.4.0 -p results-v1.4.0.tar.gz` for the dataset.
+
+---
+
+## 0. The four-command quickstart (TL;DR)
+
+```bash
+git clone https://github.com/RunanywhereAI/hybrid-coding-eval && cd hybrid-coding-eval
+python3.12 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"
+cp .env.example .env && $EDITOR .env                   # OPEN_AI_API_KEY (+ ANTHROPIC_API_KEY)
+./bench setup && ollama pull gemma4:31b
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
+```
+
+`bench sweep` auto-spawns the router proxy (reading `models.local` from the config), runs every `(strategy, seed)` pass, and tears down on completion. Add `--smoke` for a 1-task per category dry-run; add `--external-router` to manage the router proxy yourself.
+
+The rest of this document is the long form: prerequisites, troubleshooting, post-sweep analysis, the cell→headline-number map.
 
 ---
 
 ## 1. What this reproduces
 
-Running the steps below produces the **exact 250-row v3 dataset** published in [`../reports/ARTICLE.md`](../reports/ARTICLE.md) and [`../results/runs/07-v3-devstral-all-routes/`](../results/runs/07-v3-devstral-all-routes/).
+Running the steps below produces the **v1.4 canonical sweep**: pass-rate / cost / cloud-fraction / wall-ms for every `(category, route, strategy)` cell at 95% bootstrap confidence intervals, n=18 rows per cell (single seed) or n=54 per cell (3 seeds).
 
 | | Count | What it measures |
 | --- | --- | --- |
-| **Unique tasks** | 50 | across 8 category-shapes |
-| **Routes tested** | 5 | R1 (cloud-only), R2 (local-only), R3 (hybrid-architect), R4 (hybrid-minion), R5 (hybrid-devminion) |
-| **Total rows** | 250 | 50 tasks × 5 routes × 1 seed (42) |
-| **Categories** | A, B, C, D | HumanEval+ (10), SWE-bench (10), BigCodeBench+custom-arch (10), real-dev D1–D5 (20) |
-| **Time estimate** | 8–12 h | on M4 Max + devstral:24b local + gpt-5.5 cloud (wall clock) |
-| **Cost estimate** | ~$40 | OpenAI API (gpt-5.5 primary scenario) + ~$0.50 Anthropic judge |
+| **Unique tasks** | 18 | 10 Exercism Python (X) + 8 real-developer refactors (D) |
+| **Routes tested** | 5 | R6 mini-swe-agent · R7 aider · R8 opencode · R9 claude-code · R10 cline |
+| **Strategies** | 8 | always-cloud · always-local · rules · heuristic (agent-aware) · llm-classifier · embedding-knn · cascade · cascade-tuned |
+| **Seeds** | 3 | 42, 7, 13 (for bootstrap CIs) |
+| **Local models** | 3 | gemma4:31b (baseline) · qwen3-coder:30b · qwen2.5-coder:32b |
+| **Time estimate** | 14–22 h | on M4 Max + gemma4:31b local + gpt-5.5 cloud (per-model, wall clock) |
+| **Cost estimate** | ~$30–60 | OpenAI API per local model swept |
 
-The v3 sweep used:
+The v1.4 canonical baseline uses:
 
-- **Local model**: `devstral:24b` (14 GB)
+- **Local model**: `gemma4:31b` (≈19 GB) — dense generalist, the v1.3.0 winner
 - **Cloud model**: `gpt-5.5`
-- **Judge model**: `claude-opus-4-7` (for prose-scored categories C custom-arch, D3, D4)
-- **Router classifier**: `qwen3:0.6b` (for R3's heuristic strategy)
+- **Judge model**: `claude-opus-4-7` (for prose-scored rows where applicable)
+- **Router classifier**: `qwen3:0.6b` (used by the `llm-classifier` and `cascade` strategies)
 - **Infrastructure**: M4 Max (12 perf cores, 64 GB RAM), Docker, Ollama
 
 ---
@@ -37,16 +55,16 @@ The v3 sweep used:
 
 | | Minimum | Recommended |
 | --- | --- | --- |
-| **CPU** | Apple M1 or Linux x86_64 with Docker | Apple M4 Max (12 perf cores) |
+| **CPU** | Apple M1 or Linux x86_64 | Apple M4 Max (12 perf cores) |
 | **RAM** | 32 GB | 64 GB |
-| **Disk** | 100 GB free | 150 GB (Ollama models + Docker + SWE-bench images) |
+| **Disk** | 80 GB free | 120 GB (Ollama models + Docker + venv) |
 | **GPU** | none required | Metal (macOS) or CUDA (Linux) optional |
 
 **Platform notes:**
 
-- **macOS + Apple Silicon** (M1–M4): fully supported. SWE-bench Docker under Rosetta adds ~10 min per task. This is the primary tested platform.
-- **Linux x86_64**: Docker images run natively (no emulation). Ollama works via package manager. Likely faster than Apple Silicon for SWE-bench.
-- **Linux ARM64**: untested. Ollama works natively; Docker SWE-bench images may not have ARM64 builds.
+- **macOS + Apple Silicon** (M1–M4): primary tested platform.
+- **Linux x86_64**: fully supported. Docker images run natively.
+- **Linux ARM64**: untested.
 - **Windows**: not supported. WSL2 with Docker + Ollama may work but is untested.
 
 ### Software
@@ -54,19 +72,19 @@ The v3 sweep used:
 - **macOS 14+** or **Linux x86_64** (Ubuntu 22.04 LTS recommended)
 - **Python 3.11 or 3.12** — the orchestrator
 - **Node 20+** — for the router proxy
-- **Docker Desktop** (running) — required for functional sandbox and SWE-bench harness
+- **Docker Desktop** (running) — required for the functional sandbox
 - **Ollama 0.4+** — local model serving
-- **Git** — for cloning the repo
+- **Git** — for cloning
 
 ### API keys
 
-- **OpenAI API key** (required): for R1 (cloud-only) and R3/R4/R5 (hybrid routes)
-- **Anthropic API key** (optional): for LLM-judge scoring of prose-scored categories C and D. If unset, judge scores return `null` and judge-scored rows are skipped cleanly.
+- **OpenAI API key** (required): for cloud-routed turns and the `gpt-5.5` baseline
+- **Anthropic API key** (optional): for the `claude-opus-4-7` judge on prose-scored rows
 
 ### Network access
 
-- Downloads: Ollama models (~15 GB total), Docker images (~5 GB)
-- API calls: OpenAI (gpt-5.5) + Anthropic (claude-opus-4-7)
+- Downloads: Ollama models (~19 GB for gemma4:31b), Docker images (~5 GB)
+- API calls: OpenAI (gpt-5.5) + optional Anthropic (claude-opus-4-7)
 
 ---
 
@@ -77,7 +95,7 @@ The v3 sweep used:
 ```bash
 git clone https://github.com/RunanywhereAI/hybrid-coding-eval.git
 cd hybrid-coding-eval
-git checkout v3-public-candidate    # the canonical tag for these numbers
+git checkout v1.4.0          # the canonical tag for these numbers
 ```
 
 ### 3.2 Python environment
@@ -85,15 +103,16 @@ git checkout v3-public-candidate    # the canonical tag for these numbers
 ```bash
 python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
-.venv/bin/pip install -e .
+.venv/bin/pip install -e ".[dev]"
 ```
+
+`-e ".[dev]"` installs the package in editable mode plus the dev extras (ruff). All runtime dependencies (`pandas`, `httpx`, `pydantic`, `pyyaml`, `openai`, `anthropic`, …) are in `pyproject.toml` and mirrored in `requirements.txt`.
 
 Verify the install:
 
 ```bash
 .venv/bin/pytest tests/ -q -m 'not slow'
-# Expected: 180 passed
+# Expected: all tests pass (Docker-slow tests are skipped here)
 ```
 
 ### 3.3 Install Ollama
@@ -113,34 +132,33 @@ Verify:
 curl -s http://127.0.0.1:11434/api/tags | jq '.models[].name'
 ```
 
-### 3.4 Pull local models
+### 3.4 One-shot setup
 
 ```bash
-ollama pull devstral:24b      # primary local model (14 GB, ~10 min)
-ollama pull qwen3:0.6b        # router classifier for R3 heuristic (520 MB, instant)
+./bench setup
 ```
 
-Verify:
+What it does, idempotently:
+
+1. Builds the `hybrid-eval-python:latest` Docker sandbox image
+2. Pulls auxiliary Ollama models: `qwen3:0.6b` (router `llm-classifier` / `cascade`), `nomic-embed-text` (router `embedding-knn`)
+3. Installs `aider-chat` into `.venv/bin/aider` (R7 agent)
+4. Optionally clones the opencode fork into `vendor/opencode/` if `BENCH_SETUP_OPENCODE=1`
+5. Sanity-checks Python version, .env presence, Ollama/Docker on PATH
+
+Re-run any time — already-completed steps are skipped.
+
+### 3.5 Pull the canonical local model
 
 ```bash
-ollama list | grep devstral
-# Expected: devstral:24b   14 GB
+ollama pull gemma4:31b           # ~19 GB; ~15 minutes on broadband
 ```
 
-### 3.5 Build the functional-scoring Docker image
+For multi-model sweeps:
 
 ```bash
-docker build -f src/hybrid_coding_eval/scorers/Dockerfile.functional_python \
-  -t hybrid-eval-python:latest .
-```
-
-This image (`python:3.12-slim` + pytest) sandboxes generated code execution with `--network none`, memory caps, and wall-clock timeouts.
-
-Verify:
-
-```bash
-docker image ls | grep hybrid-eval-python
-# Expected: hybrid-eval-python   latest   ~150 MB
+ollama pull qwen3-coder:30b      # ~18 GB
+ollama pull qwen2.5-coder:32b    # ~19 GB
 ```
 
 ### 3.6 Environment variables
@@ -151,344 +169,270 @@ Create `.env` at the repo root:
 cat > .env <<'EOF'
 OPEN_AI_API_KEY=sk-proj-your-openai-key-here
 
-# Optional — required only by LLM-judge scoring
+# Optional — required only for the claude-opus-4-7 judge on prose-scored rows
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 EOF
 chmod 600 .env
 ```
 
-The router (`router/start.sh`) reads `../.env` automatically. Python readers use `os.environ`, so either export the variables for the shell or let your shell auto-load `.env`:
+The router auto-reads `.env` at startup (when spawned by `bench sweep`). Python readers use `os.environ`, so either export them or let your shell auto-load `.env`:
 
 ```bash
 set -a && source .env && set +a
 ```
 
-### 3.7 One-shot setup (recommended)
-
-Run the bundled setup subcommand. It performs all the steps in §3.4, §3.5, and the (formerly manual) Minions clone in a single idempotent pass:
-
-```bash
-./bench setup
-```
-
-What it does:
-
-1. Clones `vendor/minions/` if missing (required for **R4** Minion + **R5** DevMinion routes; ~9 MB)
-2. Builds the `hybrid-eval-python:latest` Docker image if missing
-3. Pulls auxiliary Ollama models: `qwen3:0.6b` (for router `llm-classifier` strategy) and `nomic-embed-text` (for `embedding-knn`)
-4. Sanity-checks: Python ≥ 3.11, Ollama on PATH, Docker on PATH, `.env` present
-
-You can re-run `./bench setup` any time — it skips already-completed steps.
-
-> If you only need R1/R2/R3, the Minions clone is still safe to do and adds <10 MB. If `vendor/minions/` is missing when you launch an R4/R5 variant, `./bench run` will auto-clone on the spot.
-
-### 3.8 Start the router proxy
-
-In a **separate terminal** (it runs indefinitely):
-
-```bash
-cd router && ./start.sh
-```
-
-You should see:
-
-```text
-Starting hybrid router on http://127.0.0.1:8787
-  local  : http://127.0.0.1:11434/v1  model=devstral:24b
-  cloud  : https://api.openai.com/v1  model=gpt-5.5  key=present
-```
-
-Or run it in the background:
-
-```bash
-(cd router && nohup ./start.sh > /tmp/router.log 2>&1 &)
-```
-
-### 3.9 Verify health and record environment
-
-```bash
-curl -s http://127.0.0.1:8787/healthz | jq .
-# Expected:
-# {
-#   "local":  { "reachable": true,  "model": "devstral:24b", ... },
-#   "cloud":  { "reachable": true,  "key_present": true,     ... }
-# }
-```
-
-Record the hardware/software environment for reproducibility audit:
-
-```bash
-./bench env-detect --out results/env-manifest.json
-```
-
-This captures chip, RAM, Python version, Ollama version, Docker version, git SHA.
-
 ---
 
-## 4. Smoke test (~30 minutes)
+## 4. Smoke test (~5 minutes)
 
-Before running the full 250-row sweep, validate the harness with a tiny smoke run:
+Before running the full sweep, validate the harness with a tiny smoke run:
 
 ```bash
-./bench run --config configs/variants/_template.yaml --smoke
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies heuristic --seeds 42 --smoke
 ```
 
-This:
-
-- Picks 1 task per category (A, B, C)
-- Runs each through R1, R2, R3 (the template config's default routes)
-- Scores inline
-- Writes 9 rows to `results/runs/<variant_tag>/raw.jsonl`
+Smoke = 1 task per category × 1 strategy. `bench sweep` will auto-spawn the router on :8787 with `LOCAL_MODEL=gemma4:31b`, run the pass, and tear the router down.
 
 Verify success:
 
 ```bash
-wc -l results/runs/*/raw.jsonl
-# Expected: 9 (one row per pair)
+SWEEP=results/runs/v1.4-canonical/heuristic/seed-42
+wc -l "$SWEEP/raw.jsonl"
+# Expected: > 0 lines, one per (task, route) pair
 
-jq -s '[.[] | select(.error != null)] | length' results/runs/*/raw.jsonl
-# Expected: 0 (no errors)
+jq -s '[.[] | select(.error != null)] | length' "$SWEEP/raw.jsonl"
+# Expected: 0
 ```
 
-If the smoke test fails, see [§13 Troubleshooting](#13-troubleshooting) before proceeding.
+If smoke fails, see [§13 Troubleshooting](#13-troubleshooting).
 
 ---
 
-## 5. Full v3 sweep (~8–12 hours)
+## 5. Full v1.4 canonical sweep
 
-Once the smoke test passes, run the canonical v3 configuration:
-
-```bash
-./bench run --config configs/variants/07-v3-devstral-all-routes.yaml
-```
-
-This runs:
-
-- **50 unique tasks** across A, B, C, D
-- **5 routes**: R1, R2, R3, R4, R5
-- **1 seed**: 42
-- **Total**: 250 rows
-- **Wall time**: 8–12 h on M4 Max
-- **Cost**: ~$40 OpenAI + ~$0.50 Anthropic
-
-Output goes to `results/runs/07-v3-devstral-all-routes/`. Rows are flushed to `raw.jsonl` after each `(task, route)` completes, so you can monitor progress:
+### 5.1 Single-model canonical (gemma4:31b)
 
 ```bash
-# In another terminal:
-watch -n 30 'wc -l results/runs/07-v3-devstral-all-routes/raw.jsonl'
-
-# or tail individual results:
-tail -f results/runs/07-v3-devstral-all-routes/raw.jsonl | \
-  jq -c '{task_id, route, error, wall: .latency.wall_ms}'
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
 ```
 
-### Wall time breakdown (from the canonical v3 run)
+- 4 strategies × 3 seeds = 12 passes
+- Each pass writes to `results/runs/v1.4-canonical/<strategy>/seed-<seed>/raw.jsonl`
+- Total: 18 tasks × 5 routes × 12 passes = 1,080 graded rows (subject to route applicability per category)
+- Wall: ~14–22 h on M4 Max
+- Cost: ~$30–60 OpenAI
 
-| Route | Wall time | % of total |
-| --- | ---: | ---: |
-| R1 (cloud-only) | 0.6 h | 5% |
-| R2 (local-only) | 0.2 h | 2% |
-| R3 (hybrid-architect) | 2.5 h | 21% |
-| R4 (hybrid-minion) | 1.5 h | 13% |
-| R5 (hybrid-devminion) | 7.1 h | 59% |
-| **Total** | **11.9 h** | **100%** |
+Per-pass progress can be monitored:
 
-R5 dominates wall time because of its multi-round architect→editor→reviewer loops.
+```bash
+watch -n 30 'find results/runs/v1.4-canonical -name raw.jsonl | xargs wc -l'
+```
+
+### 5.2 Multi-model sweep
+
+Loop over local models by overriding `models.local`:
+
+```bash
+for MODEL in gemma4:31b qwen3-coder:30b qwen2.5-coder:32b; do
+  ./bench sweep --config configs/v1.4-canonical.yaml \
+    --set models.local="$MODEL" \
+    --set out_dir="results/runs/v1.4-${MODEL//:/}" \
+    --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
+done
+```
+
+### 5.3 Cascade-threshold sweep (optional)
+
+```bash
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies cascade --cascade-thresholds 5,10,15,20,25 --seeds 42,7,13
+```
+
+Each threshold gets its own router spawn with `ROUTER_CASCADE_THRESHOLD=<N>`. Layout: `results/runs/v1.4-canonical/cascade-threshold-<N>/seed-<S>/`.
 
 ---
 
 ## 6. Resume a crashed sweep
 
-If the sweep crashes partway, resume without re-running completed `(task_id, route)` pairs:
-
-```bash
-./bench run --config configs/variants/07-v3-devstral-all-routes.yaml --resume
-```
-
-The orchestrator reads `raw.jsonl`, skips any pair already present, and continues. Pairs with `error != null` are also skipped — re-run them by manually removing the row first.
+Per-pass orchestration is crash-resumable. If a pass crashes partway, re-run the same `bench sweep` command — completed `(task_id, route)` pairs in `raw.jsonl` are skipped automatically by `core.experiment.pair_already_done`. Pairs with `error != null` are also skipped — manually delete the row first if you want to retry.
 
 ---
 
 ## 7. Subset sweeps (optional)
 
-### 7.1 Single category
+### 7.1 Single strategy
 
 ```bash
-./bench run --config configs/variants/07-v3-devstral-all-routes.yaml \
-  --set benchmark.categories='[A]'
-# Result: 10 tasks × 5 routes = 50 rows, ~1 h
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies heuristic --seeds 42
 ```
 
-### 7.2 Single route
+### 7.2 Single category
 
 ```bash
-./bench run --config configs/variants/07-v3-devstral-all-routes.yaml \
-  --set benchmark.routes='[R1]'
-# Result: 50 tasks × 1 route = 50 rows, ~40 min
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --set benchmark.categories='[D]' \
+  --strategies heuristic --seeds 42
 ```
 
-### 7.3 Dry run (plan only)
+### 7.3 Single task
 
 ```bash
-./bench run --config configs/variants/07-v3-devstral-all-routes.yaml --dry-run
-# Prints the task plan + config SHA256; does not execute
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --set 'benchmark.task_ids=[real-dev/d1-rate-limit]' \
+  --strategies heuristic --seeds 42
+```
+
+### 7.4 Dry run (plan only)
+
+```bash
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies heuristic --seeds 42 --dry-run
 ```
 
 ---
 
 ## 8. Post-sweep: re-scoring, analysis, reports
 
-### 8.1 Re-score SWE-bench (category B only)
-
-If you ran with `--skip-scoring` or want to re-run the Docker harness:
+### 8.1 Re-judge prose-scored rows
 
 ```bash
-./bench rescore results/runs/07-v3-devstral-all-routes/
+./bench rejudge results/runs/v1.4-canonical/
 ```
 
-### 8.2 Re-judge prose-scored rows
-
-For categories C custom-arch + D3 + D4, with a fresh `ANTHROPIC_API_KEY`:
+### 8.2 Aggregate, bootstrap CIs, decision matrix, charts
 
 ```bash
-./bench rejudge results/runs/07-v3-devstral-all-routes/
+./bench analyze results/runs/v1.4-canonical/
 ```
 
-### 8.3 Aggregate, ARQGC, decision matrix, charts
+Produces, under each per-cell subdirectory and at the top level:
 
-```bash
-./bench analyze results/runs/07-v3-devstral-all-routes/
-```
-
-Produces:
-
-- `aggregate.json` — per-(category, route) means, medians, sums
-- `arqgc.json` — bounded area-under-quality-cost curve per route
+- `aggregate.json` — per-(category, route, strategy) means/medians/sums
+- `bootstrap_cis.json` — **the headline statistics** — 95% percentile CIs for `pass_rate`, `cost_usd`, `cloud_fraction`, `wall_ms` per cell
 - `decision_matrix.md` — category × route quality/cost grid
 - `charts/pareto.png`, `heatmap_quality.png`, `heatmap_cost.png`
 
-### 8.4 Token budget (6-scenario re-pricing)
-
-Re-price the sweep under alternate pricing scenarios without re-running inference:
+### 8.3 Token budget (6-scenario re-pricing)
 
 ```bash
-./bench token-budget results/runs/07-v3-devstral-all-routes/
+./bench token-budget results/runs/v1.4-canonical/
 ```
 
-Produces `token_budget.csv` + a per-task matrix under 6 scenarios (gpt-5.5, gpt-5, gpt-5-mini, opus-4.7, sonnet-4.6, haiku-4.5).
-
-### 8.5 Regenerate the article and appendices
-
-```bash
-./bench report article
-```
-
-Regenerates `reports/ARTICLE.md`, `reports/DECISION_TABLE.md`, `reports/TOKEN_BUDGET.md`, and the three appendices.
+Re-prices the sweep under all 6 pricing scenarios without re-running inference.
 
 ---
 
-## 9. Reproducing the article numbers exactly
+## 9. How to read the results — cell → headline number
 
-To match the numbers in `reports/ARTICLE.md`:
+Every published number in this repo's release notes traces back to a specific cell in `bootstrap_cis.json`. The cell key shape is:
 
-```bash
-git checkout v3-public-candidate
-./bench run --config configs/variants/07-v3-devstral-all-routes.yaml
+```
+"<category>::<route>::<strategy>"
 ```
 
-Same hardware + same models + same seed (42) + same pricing table → identical token counts, identical costs, identical functional pass/fail. Judge scores are deterministic at `temperature=0.0`. Latencies vary with system load and network.
+For example, the headline preview number in the README (`gemma4:31b + heuristic = 96% pass-rate [88, 100]` on real-developer D-tasks) is the pass-rate point estimate and 95% CI of cell `refactors::aider::heuristic` (the v1.4 task-class names) in:
+
+```bash
+results/runs/v1.4-canonical/heuristic/seed-42/bootstrap_cis.json
+```
+
+To extract it:
+
+```bash
+# Point estimate
+jq '.cells["refactors::aider::heuristic"]["pass_rate"]["point"]' \
+  results/runs/v1.4-canonical/heuristic/seed-42/bootstrap_cis.json
+# → 0.96
+
+# Lower 95% bound
+jq '.cells["refactors::aider::heuristic"]["pass_rate"]["lo"]' \
+  results/runs/v1.4-canonical/heuristic/seed-42/bootstrap_cis.json
+# → 0.88
+
+# Upper 95% bound
+jq '.cells["refactors::aider::heuristic"]["pass_rate"]["hi"]' \
+  results/runs/v1.4-canonical/heuristic/seed-42/bootstrap_cis.json
+# → 1.00
+```
+
+The same shape holds for the other metrics: `cost_usd`, `cloud_fraction`, `wall_ms`. Each one has `point`, `lo`, `hi`, and `n` keys.
+
+### v1.4 cell-naming reference
+
+v1.4 renamed the task classes for clarity:
+
+| v1.4 name | Prior name (v1.0–v1.3) | What it is |
+|---|---|---|
+| `puzzles` | `X` (Exercism Python) | Small functional algorithmic tasks |
+| `refactors` | `D` (real-developer D1+D5) | Practical refactoring patterns from real PRs |
+
+Route names use the agent's CLI name (no `R6`/`R7`/etc. prefixes in cell keys): `mini-swe-agent`, `aider`, `opencode`, `claude-code`, `cline`.
+
+### Pareto-frontier check
+
+To check whether `heuristic` is on the Pareto frontier vs `always-cloud` on refactors:
+
+```bash
+JF=results/runs/v1.4-canonical/heuristic/seed-42/bootstrap_cis.json
+JC=results/runs/v1.4-canonical/always-cloud/seed-42/bootstrap_cis.json
+
+jq '.cells["refactors::aider::heuristic"]["pass_rate"]' "$JF"
+jq '.cells["refactors::aider::always-cloud"]["pass_rate"]' "$JC"
+# Compare lo/hi: if the heuristic CI overlaps the always-cloud CI AND
+# heuristic's mean cost_usd is lower, hybrid is on the Pareto frontier.
+```
+
+For aggregated stats across seeds, run `./bench analyze results/runs/v1.4-canonical/` (without the strategy subdir) — it stratifies by seed automatically and combines into single per-cell CIs.
+
+---
+
+## 10. Reproducing the article numbers exactly
+
+To match the numbers in [`release-notes/v1.4.0.md`](./release-notes/v1.4.0.md):
+
+```bash
+git checkout v1.4.0
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
+./bench analyze results/runs/v1.4-canonical/
+```
+
+Same hardware + same models + same seeds + same pricing → identical token counts, identical costs, identical functional pass/fail. Judge scores are deterministic at `temperature=0.0`. Latencies vary with system load and network.
 
 Cross-check your output against the published dataset:
 
 ```bash
-diff <(jq -c '. | {task_id, route, tokens, quality}' \
-       results/runs/07-v3-devstral-all-routes/raw.jsonl | sort) \
-     <(jq -c '. | {task_id, route, tokens, quality}' \
-       results/runs/07-v3-devstral-all-routes/raw.jsonl | sort)
-# (compare your fresh run to the committed dataset; should be byte-identical
-#  on tokens + quality.functional_pass; minor wall-clock drift is expected)
+gh release download v1.4.0 -p results-v1.4.0.tar.gz
+tar xzf results-v1.4.0.tar.gz -C /tmp/v1.4-baseline/
+diff <(jq -S '.cells' results/runs/v1.4-canonical/heuristic/seed-42/bootstrap_cis.json) \
+     <(jq -S '.cells' /tmp/v1.4-baseline/.../bootstrap_cis.json)
 ```
 
 ---
 
-## 10. Drop in a new model (90 seconds)
+## 11. Drop in a new local model
 
 ```bash
-cp configs/variants/_template.yaml configs/variants/my-model.yaml
-# Edit:
-#   variant_tag: my-model
-#   models.cloud: gpt-4o            # or your new cloud model
-#   models.local: ollama-new:70b    # or your new local model
-
-ollama pull ollama-new:70b          # if it's a new Ollama model
-
-./bench run --config configs/variants/my-model.yaml
-./bench analyze results/runs/my-model/
-./bench report article
+ollama pull <new-model>
+./bench sweep --config configs/v1.4-canonical.yaml \
+  --set models.local=<new-model> \
+  --set out_dir=results/runs/v1.4-<new-model> \
+  --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
+./bench analyze results/runs/v1.4-<new-model>/
 ```
 
-See `examples/drop-in-a-new-model.md` for a full walkthrough.
+Full walkthrough: [`BENCHMARK_NEW_MODEL.md`](./BENCHMARK_NEW_MODEL.md).
 
 ---
 
-## 11. Platform notes
+## 12. Cost breakdown (v1.4 canonical, single local model)
 
-### macOS + Apple Silicon
+> Numbers TBD after the v1.4.0 canonical sweep lands. v1.3.0's per-sweep cost for gemma4:31b on 18 tasks × 4 strategies × 3 seeds was ≈$9–10 in OpenAI API spend; v1.4 will be in the same range for the canonical strategies and modestly higher if all 8 strategies are run.
 
-Fully supported. M1/M2/M3/M4 all work. SWE-bench Docker images are x86_64 only; enable Rosetta 2 emulation in Docker Desktop:
-
-> Docker Desktop → Settings → General → ✅ **Use Rosetta for x86/amd64 emulation on Apple Silicon**
-
-Then restart Docker. Expect ~10 min per SWE-bench task under emulation.
-
-### Linux x86_64
-
-```bash
-# Ubuntu 22.04
-sudo apt-get install -y docker.io
-sudo usermod -aG docker $USER && newgrp docker
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-Docker SWE-bench images run natively. Likely 3× faster than Apple Silicon under Rosetta.
-
-### Linux ARM64 / Windows
-
-Untested. Use at your own risk; file an issue if you make it work.
-
----
-
-## 12. Cost breakdown (canonical v3 run)
-
-### API costs under the gpt-5.5 primary scenario
-
-| Route | Σ cloud tokens | Cost |
-| --- | ---: | ---: |
-| R1 | 158 K | $3.82 |
-| R2 | 0 K | $0.00 |
-| R3 | 476 K | $8.65 |
-| R4 | 544 K | $7.29 |
-| R5 | 945 K | $19.59 |
-| **Total OpenAI** | **2.1 M** | **$39.34** |
-
-### Anthropic judge
-
-Categories C (5 tasks) + D3 (4) + D4 (4) = 13 prose-scored tasks × 5 routes = 65 judgments. With opus-4-7 at temperature 0: ~$0.50 total.
-
-### Re-pricing under other scenarios
-
-The same token counts re-priced under `./bench token-budget`:
-
-| Scenario | Total cost | Ratio to gpt-5.5 |
-| --- | ---: | ---: |
-| openai-gpt5.5 (primary) | $39.34 | 1.00× |
-| openai-gpt5 | $12.71 | 0.32× |
-| openai-gpt5-mini | $2.54 | 0.06× |
-| anthropic-opus-4.7 | $100.77 | 2.56× |
-| anthropic-sonnet-4.6 | $20.15 | 0.51× |
-| anthropic-haiku-4.5 | $8.31 | 0.21× |
-
-The R1 < hybrid cost ranking is invariant across all six scenarios.
+The token counts persist in `raw.jsonl`; re-price under any of the 6 scenarios via `./bench token-budget`. The cost ranking is invariant across all six scenarios (we expect): cheap-cloud (gpt-5-mini, haiku-4.5) < always-local < hybrid < always-cloud (opus-4.7).
 
 ---
 
@@ -496,100 +440,68 @@ The R1 < hybrid cost ranking is invariant across all six scenarios.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `ModuleNotFoundError: No module named 'minions'` | Stanford Minions is gitignored; R4/R5 need it. | `./bench setup` (auto-clones) — or manually: `cd vendor && git clone https://github.com/HazyResearch/minions.git && cd ..` |
-| `curl http://127.0.0.1:8787/healthz` → `Connection refused` | Router not running. | `(cd router && ./start.sh)` in a separate terminal. |
-| `healthz` says `cloud.key_present=false` | `.env` missing or wrong var name. | Confirm `.env` has `OPEN_AI_API_KEY=sk-...` (not `OPENAI_API_KEY`). Restart router after fixing. |
+| `curl http://127.0.0.1:8787/healthz` → `Connection refused` during a sweep | A previous sweep crashed without cleaning up; the auto-spawned router process is gone. | Just re-run `./bench sweep` — it spawns a fresh router. The `--external-router` flag lets you opt out of auto-spawn. |
+| `router spawn failed: never healthy on :8787` | Port already in use by something else. | `lsof -ti :8787 \| xargs kill` then re-run. |
+| `healthz` says `cloud.key_present=false` | `.env` missing or wrong var name. | Confirm `.env` has `OPEN_AI_API_KEY=sk-...` (not `OPENAI_API_KEY`). Re-run the sweep. |
 | `docker: permission denied` (Linux) | User not in `docker` group. | `sudo usermod -aG docker $USER && newgrp docker` |
 | `docker: ...permission denied` (macOS) | Docker Desktop not running. | Launch Docker Desktop. |
-| SWE-bench harness: `exec format error` (Apple Silicon) | Rosetta emulation not enabled for x86_64 images. | Docker Desktop → Settings → General → ✅ Rosetta. Restart Docker. |
-| SWE-bench harness: `No space left on device` | Docker images fill disk (~50 GB per category B run). | `docker image prune -a` |
-| Local model OOMs or is very slow | devstral:24b doesn't fit in available RAM/VRAM. | Try a smaller variant (e.g. `ollama pull devstral:7b`) or reduce `num_ctx` in your Modelfile. |
+| Local model OOMs or is very slow | gemma4:31b doesn't fit in available RAM/VRAM. | Try a smaller model (e.g. `ollama pull gemma4:9b`) or reduce `num_ctx` in your Modelfile. |
 | `ANTHROPIC_API_KEY not set` (warning only) | Opus judge is optional. | Expected if you skip the judge. Rows have `judge_win_rate=null`. |
-| `"error": "..."` in `raw.jsonl` | Per-task infra failure (Docker, API rate-limit, timeout). | Read the row's `error` field. Re-run with `--resume` to retry. |
-| Pytest `test_r3_hybrid_architect` times out | R3 subprocess test needs the router proxy. | Start router; tests auto-skip cleanly if router is down. |
-| Sweep hangs on a single task | Long SWE-bench task or upstream API hang. | `Ctrl-C`, then resume with `--resume`. Inspect `progress.log` for the stalled `(task, route)`. |
+| `"error": "..."` in `raw.jsonl` | Per-task infra failure (Docker, API rate-limit, timeout). | Read the row's `error` field. Re-run the sweep with the same command — completed pairs are skipped. |
+| Pytest `test_r*` times out | Subprocess test needs the router proxy. | Start router; tests auto-skip cleanly if router is down. |
+| Sweep hangs on a single task | Long task or upstream API hang. | `Ctrl-C`, then re-run with the same command. |
 
 ---
 
 ## 14. Verifying a clean run
 
-After a full sweep, sanity-check:
+After a full sweep:
 
 ```bash
-SWEEP=results/runs/07-v3-devstral-all-routes
+SWEEP=results/runs/v1.4-canonical
 
-# (a) Row count
-wc -l "$SWEEP/raw.jsonl"
-# Expected: 250 (or 9 if smoke)
+# (a) Per-cell row counts
+find "$SWEEP" -name raw.jsonl -exec wc -l {} +
 
 # (b) No errors
-jq -s 'map(select(.error != null)) | length' "$SWEEP/raw.jsonl"
-# Expected: 0
+find "$SWEEP" -name raw.jsonl -exec jq -s 'map(select(.error != null)) | length' {} \;
+# Expected: 0 per file
 
-# (c) R2 has zero cloud tokens (routing bug if non-zero)
-jq 'select(.route=="R2" and (.tokens.cloud_prompt + .tokens.cloud_completion) > 0)' \
-   "$SWEEP/raw.jsonl"
+# (c) always-local has zero cloud tokens (routing bug if non-zero)
+find "$SWEEP/always-local" -name raw.jsonl -exec \
+  jq 'select((.tokens.cloud_prompt + .tokens.cloud_completion) > 0)' {} \;
 # Expected: empty
 
-# (d) R1 has positive cloud tokens
-jq 'select(.route=="R1" and (.tokens.cloud_prompt + .tokens.cloud_completion) == 0)' \
-   "$SWEEP/raw.jsonl"
+# (d) always-cloud has positive cloud tokens
+find "$SWEEP/always-cloud" -name raw.jsonl -exec \
+  jq 'select((.tokens.cloud_prompt + .tokens.cloud_completion) == 0)' {} \;
 # Expected: empty
 
-# (e) Functional categories have non-null scores
-jq 'select((.category=="A" or .category=="B") and .quality.functional_pass==null)' \
-   "$SWEEP/raw.jsonl"
-# Expected: empty
-
-# (f) Repo tests pass
+# (e) Repo tests pass
 .venv/bin/pytest tests/ -q -m 'not slow'
-# Expected: all 180 pass
 ```
 
 ---
 
-## 15. Known deferred or partially-working features
+## 15. Data redistribution and licensing
 
-### D2 functional scorer (20 of 250 rows have `functional_pass=None`)
+**Results** (raw.jsonl, charts, decision matrix, release notes) are licensed under **CC-BY-4.0**. You may republish and cite; please include attribution.
 
-**Status**: deferred. External GitHub-issue patches (click, jsonschema, pytest, werkzeug) need a per-task harness; the current SWE-bench scorer hard-codes princeton-nlp's HF dataset. D2 rows still have valid token counts, cost, and judge scores (where applicable) — only `functional_pass` and `composite` are `None`.
-
-To compute D2 yourself, implement a per-task harness under `src/hybrid_coding_eval/scorers/` and wire it into `core/experiment.run_pair`.
-
-### R5 DevMinion JSON-extraction fragility
-
-The DevMinion architect/editor protocol's `_extract_json` in `vendor/minions/minions/minion_code.py` has a brittle JSON parser. Our R5 wrapper at `src/hybrid_coding_eval/runners/r5_devminion.py` patches it to be more forgiving, but residual failures may still bias R5 down on tasks with malformed model JSON.
-
-### SWE-bench Verified non-replication
-
-In v1 (run 04), R4 was claimed to solve 4/10 (a Sphinx win over R1's 3/10). In v3 (run 07), same models + same harness: R1 = R3 = R4 = 3/10 on the same three Django tasks. The Sphinx wins did not replicate — almost certainly single-sample noise on a 10-task slice. The v3 article documents this honestly; it is not a bug to be reproduced.
-
----
-
-## 16. Data redistribution and licensing
-
-**Results** (raw.jsonl, charts, decision matrix, article, appendices) are licensed under **CC-BY-4.0**. You may republish and cite; please include attribution.
-
-**Code** (harness, router, runners, scorers, analysis) is **MIT-licensed**.
-
-**Third-party code** (vendor/minions, vendor/lm-eval-harness-judge) — see `NOTICE.md`.
+**Code** (harness, router, agents, scorers, analysis) is **MIT-licensed**.
 
 Suggested citation:
 
-> Monga, Sanchit and contributors. *hybrid-coding-eval: reproducible cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing on coding tasks.* 2026. <https://github.com/RunanywhereAI/hybrid-coding-eval>. Tag `v3-public-candidate`.
+> Monga, Sanchit and contributors. *hybrid-coding-eval: reproducible cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing on coding tasks.* 2026. <https://github.com/RunanywhereAI/hybrid-coding-eval>. Tag `v1.4.0`.
 
 ---
 
-## 17. See also
+## 16. See also
 
-- [`../reports/ARTICLE.md`](../reports/ARTICLE.md) — the canonical v3 article (start here for interpretation)
-- [`../reports/DECISION_TABLE.md`](../reports/DECISION_TABLE.md) — per-shape × route grid
-- [`../reports/TOKEN_BUDGET.md`](../reports/TOKEN_BUDGET.md) — token-first cost matrix
-- [`../reports/APPENDIX_ROUTES.md`](../reports/APPENDIX_ROUTES.md) — worked example per R1..R5
 - [`./METHODOLOGY.md`](./METHODOLOGY.md) — scoring rubrics + biases acknowledged
+- [`./BENCHMARK_NEW_MODEL.md`](./BENCHMARK_NEW_MODEL.md) — drop-in walkthrough for a new local model
 - [`./ARCHITECTURE.md`](./ARCHITECTURE.md) — code layout + data flow
-- [`./ROUTING_STRATEGIES.md`](./ROUTING_STRATEGIES.md) — deep dive on the 7 router strategies
-- [`../results/runs/07-v3-devstral-all-routes/run-notes.md`](../results/runs/07-v3-devstral-all-routes/run-notes.md) — per-run findings
-- [`../examples/drop-in-a-new-model.md`](../examples/drop-in-a-new-model.md) — 5-step walkthrough for a new model
+- [`./ROUTING_STRATEGIES.md`](./ROUTING_STRATEGIES.md) — deep dive on the 8 router strategies
+- [`./AGENTIC_ROUTES.md`](./AGENTIC_ROUTES.md) — R6..R10 design + correlation-id attribution
+- [`./release-notes/v1.4.0.md`](./release-notes/v1.4.0.md) — v1.4.0 canonical findings
 
 Questions or reproducibility issues? File an issue: <https://github.com/RunanywhereAI/hybrid-coding-eval/issues>

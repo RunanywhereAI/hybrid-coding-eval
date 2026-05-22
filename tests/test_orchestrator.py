@@ -60,23 +60,27 @@ def test_pair_already_done_detects_prior_rows(tmp_path: Path) -> None:
 
 
 def test_build_task_plan_smoke_shape() -> None:
-    """Smoke build: 1 task per category × 3 routes = 3 × 3 = 9 items for A+B+C."""
+    """Smoke build: 1 task per class × 3 routes = 3 × 3 = 9 items.
+
+    v1.4 uses the puzzles/refactors/real-prs task-class taxonomy in place
+    of the legacy A/B/C category letters.
+    """
     plan = build_task_plan(
-        categories=["A", "B", "C"],
-        routes=["R1", "R2", "R3"],
+        task_classes=["puzzles", "refactors", "real-prs"],
+        agents=["mini-swe-agent", "aider", "opencode"],
         smoke=True,
         tasks_cap=None,
     )
     assert len(plan) == 9
-    # Each category has exactly 3 items (one per route).
+    # Each class has exactly 3 items (one per route).
     by_cat: dict[str, int] = {}
     for item in plan:
         assert isinstance(item, TaskPlan)
-        by_cat[item.category] = by_cat.get(item.category, 0) + 1
-    assert by_cat == {"A": 3, "B": 3, "C": 3}
+        by_cat[item.task_class] = by_cat.get(item.task_class, 0) + 1
+    assert by_cat == {"puzzles": 3, "refactors": 3, "real-prs": 3}
     # Routes present in the expected deterministic order per task.
-    routes_seen = [item.route for item in plan if item.category == "A"]
-    assert routes_seen == ["R1", "R2", "R3"]
+    routes_seen = [item.agent for item in plan if item.task_class == "puzzles"]
+    assert routes_seen == ["mini-swe-agent", "aider", "opencode"]
 
 
 # --------------------------------------------------------------------------- #
@@ -90,10 +94,10 @@ def test_dry_run_prints_plan_and_exits_zero(tmp_path: Path) -> None:
         [
             *RUN_ARGS,
             "--smoke",
-            "--categories",
-            "A",
-            "--routes",
-            "R1",
+            "--task-classes",
+            "puzzles",
+            "--agents",
+            "mini-swe-agent",
             "--out",
             str(out),
             "--dry-run",
@@ -130,23 +134,23 @@ def test_resume_skip_is_a_noop_when_all_pairs_done(tmp_path: Path) -> None:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-    # Discover which task A/R1 would run against.
+    # Discover which task puzzles/R6 would run against.
     plan = build_task_plan(
-        categories=["A"], routes=["R1"], smoke=True, tasks_cap=None
+        task_classes=["puzzles"], agents=["mini-swe-agent"], smoke=True, tasks_cap=None
     )
     assert len(plan) == 1
     seeded_task_id = plan[0].task_id
-    append_row(raw, _make_row(seeded_task_id, "R1"))
+    append_row(raw, _make_row(seeded_task_id, "mini-swe-agent"))
     assert raw.read_text().count("\n") == 1
 
     proc = subprocess.run(
         [
             *RUN_ARGS,
             "--smoke",
-            "--categories",
-            "A",
-            "--routes",
-            "R1",
+            "--task-classes",
+            "puzzles",
+            "--agents",
+            "mini-swe-agent",
             "--out",
             str(out),
             "--hardware-manifest",
@@ -172,10 +176,10 @@ def test_dry_run_with_all_categories_routes(tmp_path: Path) -> None:
         [
             *RUN_ARGS,
             "--smoke",
-            "--categories",
-            "A,B,C",
-            "--routes",
-            "R1,R2,R3",
+            "--task-classes",
+            "puzzles,refactors,real-prs",
+            "--agents",
+            "mini-swe-agent,aider,opencode",
             "--out",
             str(out),
             "--dry-run",

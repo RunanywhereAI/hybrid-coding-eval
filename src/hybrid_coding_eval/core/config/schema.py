@@ -1,9 +1,9 @@
 """Pydantic v2 schema for benchmark-run configs.
 
 A ``BenchConfig`` is the single declarative description of *what to
-run*: which models, which routes, which categories, which pricing
-scenarios, where to dump results. The YAML files under
-``configs/variants/`` are instances of this schema.
+run*: which models, which agents, which task classes, which pricing
+scenarios, where to dump results. The YAML files under ``configs/``
+are instances of this schema.
 
 Design:
 
@@ -49,9 +49,14 @@ RouteStrategy = Literal[
     "llm-classifier",
     "embedding-knn",
     "cascade",
+    "phase-aware",
 ]
-Category = Literal["A", "B", "C", "D", "X"]
-Route = Literal["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"]
+# v1.4 task-class taxonomy (replaces the A/B/C/D/X category letters).
+TaskClass = Literal["puzzles", "refactors", "real-prs"]
+# Friendly agent names surfaced in BenchmarkConfig.agents. The orchestrator
+# still routes internally by ``R6/R7/R8/R9/R10`` route ids; the agents-list
+# is the user-facing surface for picking which agent loops to sweep.
+Agent = Literal["aider", "opencode", "mini-swe-agent", "claude-code", "cline"]
 
 
 class ModelsConfig(BaseModel):
@@ -112,30 +117,59 @@ class RouterConfig(BaseModel):
 
 
 class BenchmarkConfig(BaseModel):
-    """Which categories × routes × how many tasks."""
+    """Which task classes × agents × how many tasks.
+
+    v1.4 replaces the legacy ``categories`` (A/B/C/D/X) + ``routes``
+    (R1–R8) surface with two friendly axes:
+
+    * ``task_classes`` — high-level work shapes (``puzzles``,
+      ``refactors``, ``real-prs``). Each maps to one benchmark adapter
+      inside :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.
+    * ``agents`` — which coding agents to sweep
+      (``aider``, ``opencode``, ``mini-swe-agent``, ``claude-code``,
+      ``cline``). The orchestrator translates these to internal route
+      ids (R6/R7/R8/R9/R10).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    categories: list[Category] = Field(default=["A", "B", "C"])
-    routes: list[Route] = Field(default=["R1", "R2", "R3", "R4"])
-    tasks_per_category: dict[str, int] | None = Field(
+    task_classes: list[TaskClass] = Field(
+        default=["puzzles", "refactors", "real-prs"],
+        description=(
+            "Which task classes to sweep. v1.4 taxonomy: ``puzzles`` "
+            "(exercism_python), ``refactors`` (real_dev), ``real-prs`` "
+            "(swebench_verified)."
+        ),
+    )
+    agents: list[Agent] = Field(
+        default=["aider", "opencode", "mini-swe-agent"],
+        description=(
+            "Which coding agents to sweep. Defaults to the three agents "
+            "that survived the v1.4 cleanup (R6/R7/R8); ``claude-code`` "
+            "and ``cline`` (R9/R10) land in parallel."
+        ),
+    )
+    tasks_per_class: dict[str, int] | None = Field(
         default=None,
-        description="Cap N per category, e.g. {'A': 3, 'B': 3, 'C': 3}.",
+        description=(
+            "Cap N per task class, e.g. ``{'puzzles': 3, 'refactors': 3, "
+            "'real-prs': 3}``."
+        ),
     )
     task_ids: list[str] | None = Field(
         default=None,
         description=(
             "Optional explicit task-ID whitelist. When set, only tasks whose "
             "``id`` field matches one of these strings are included in the "
-            "plan — `categories` + `tasks_per_category` still apply for which "
-            "sources to load FROM, but the final selection is filtered to "
-            "this list. v1.3+: use to scope to R7-compatible D1+D5 tasks."
+            "plan — ``task_classes`` + ``tasks_per_class`` still apply for "
+            "which sources to load FROM, but the final selection is filtered "
+            "to this list."
         ),
     )
     seeds: list[int] = Field(default=[42])
     smoke: bool = Field(
         default=False,
-        description="Take one task per category (deterministic).",
+        description="Take one task per class (deterministic).",
     )
 
 

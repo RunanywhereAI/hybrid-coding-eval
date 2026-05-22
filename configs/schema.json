@@ -2,51 +2,47 @@
   "$defs": {
     "BenchmarkConfig": {
       "additionalProperties": false,
-      "description": "Which categories × routes × how many tasks.",
+      "description": "Which task classes × agents × how many tasks.\n\nv1.4 replaces the legacy ``categories`` (A/B/C/D/X) + ``routes``\n(R1–R8) surface with two friendly axes:\n\n* ``task_classes`` — high-level work shapes (``puzzles``,\n  ``refactors``, ``real-prs``). Each maps to one benchmark adapter\n  inside :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.\n* ``agents`` — which coding agents to sweep\n  (``aider``, ``opencode``, ``mini-swe-agent``, ``claude-code``,\n  ``cline``). The orchestrator translates these to internal route\n  ids (R6/R7/R8/R9/R10).",
       "properties": {
-        "categories": {
+        "task_classes": {
           "default": [
-            "A",
-            "B",
-            "C"
+            "puzzles",
+            "refactors",
+            "real-prs"
           ],
+          "description": "Which task classes to sweep. v1.4 taxonomy: ``puzzles`` (exercism_python), ``refactors`` (real_dev), ``real-prs`` (swebench_verified).",
           "items": {
             "enum": [
-              "A",
-              "B",
-              "C",
-              "D",
-              "X"
+              "puzzles",
+              "refactors",
+              "real-prs"
             ],
             "type": "string"
           },
-          "title": "Categories",
+          "title": "Task Classes",
           "type": "array"
         },
-        "routes": {
+        "agents": {
           "default": [
-            "R1",
-            "R2",
-            "R3",
-            "R4"
+            "aider",
+            "opencode",
+            "mini-swe-agent"
           ],
+          "description": "Which coding agents to sweep. Defaults to the three agents that survived the v1.4 cleanup (R6/R7/R8); ``claude-code`` and ``cline`` (R9/R10) land in parallel.",
           "items": {
             "enum": [
-              "R1",
-              "R2",
-              "R3",
-              "R4",
-              "R5",
-              "R6",
-              "R7",
-              "R8"
+              "aider",
+              "opencode",
+              "mini-swe-agent",
+              "claude-code",
+              "cline"
             ],
             "type": "string"
           },
-          "title": "Routes",
+          "title": "Agents",
           "type": "array"
         },
-        "tasks_per_category": {
+        "tasks_per_class": {
           "anyOf": [
             {
               "additionalProperties": {
@@ -59,8 +55,8 @@
             }
           ],
           "default": null,
-          "description": "Cap N per category, e.g. {'A': 3, 'B': 3, 'C': 3}.",
-          "title": "Tasks Per Category"
+          "description": "Cap N per task class, e.g. ``{'puzzles': 3, 'refactors': 3, 'real-prs': 3}``.",
+          "title": "Tasks Per Class"
         },
         "task_ids": {
           "anyOf": [
@@ -75,7 +71,7 @@
             }
           ],
           "default": null,
-          "description": "Optional explicit task-ID whitelist. When set, only tasks whose ``id`` field matches one of these strings are included in the plan — `categories` + `tasks_per_category` still apply for which sources to load FROM, but the final selection is filtered to this list. v1.3+: use to scope to R7-compatible D1+D5 tasks.",
+          "description": "Optional explicit task-ID whitelist. When set, only tasks whose ``id`` field matches one of these strings are included in the plan — ``task_classes`` + ``tasks_per_class`` still apply for which sources to load FROM, but the final selection is filtered to this list.",
           "title": "Task Ids"
         },
         "seeds": {
@@ -90,7 +86,7 @@
         },
         "smoke": {
           "default": false,
-          "description": "Take one task per category (deterministic).",
+          "description": "Take one task per class (deterministic).",
           "title": "Smoke",
           "type": "boolean"
         }
@@ -201,7 +197,8 @@
             "heuristic",
             "llm-classifier",
             "embedding-knn",
-            "cascade"
+            "cascade",
+            "phase-aware"
           ],
           "title": "Strategy",
           "type": "string"
@@ -297,18 +294,17 @@
     "benchmark": {
       "$ref": "#/$defs/BenchmarkConfig",
       "default": {
-        "categories": [
-          "A",
-          "B",
-          "C"
+        "task_classes": [
+          "puzzles",
+          "refactors",
+          "real-prs"
         ],
-        "routes": [
-          "R1",
-          "R2",
-          "R3",
-          "R4"
+        "agents": [
+          "aider",
+          "opencode",
+          "mini-swe-agent"
         ],
-        "tasks_per_category": null,
+        "tasks_per_class": null,
         "task_ids": null,
         "seeds": [
           42

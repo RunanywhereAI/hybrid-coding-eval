@@ -1,0 +1,44 @@
+# v1.4 real-prs — SWE-bench Verified replay (load-bearing for "real PR" framing).
+#
+# 1 agent (aider) × 2 strategies × 1 model (gemma4) × 10 SWE-bench Verified
+# tasks × 3 seeds = 60 rows, ~3h.
+#
+# This sweep replaces "13 hand-written fixtures" framing with "real merged
+# PRs from 12 popular OSS repos" (requests, flask, click, sphinx, django, ...).
+# Score: pytest pass on the PR's own merged test suite.
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.4-real-prs
+out_dir: results/runs/v1.4-real-prs
+
+models:
+  cloud: gpt-5.5
+  local: gemma4:31b
+
+router:
+  strategy: heuristic
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [real-prs]
+  agents: [aider]
+  seeds: [42, 7, 13]
+  smoke: false
+  tasks_per_class:
+    real-prs: 10
+  # task_ids omitted: loads the first 10 SWE-bench Verified tasks the
+  # adapter returns (deterministic order per its sort/seed).
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  judge_temperature: 0.0
+  swebench_image: hybrid-eval-python:latest
+
+resume: false

@@ -1,0 +1,53 @@
+# v1.4 CANONICAL — qwen3.6:35b (third local model in the leaderboard)
+#
+# Same matrix as v1.4-canonical-gemma4.yaml, swap local model.
+# 3 agents × 4 strategies × 13 tasks × 3 seeds = 468 rows, ~7h on M4 Max.
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.4-canonical-qwen3.6
+out_dir: results/runs/v1.4-canonical-qwen3.6
+
+models:
+  cloud: gpt-5.5
+  local: qwen3.6:35b
+
+router:
+  strategy: heuristic
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [puzzles, refactors]
+  agents: [aider, opencode, cline]
+  seeds: [42, 7, 13]
+  smoke: false
+  tasks_per_class:
+    puzzles: 5
+    refactors: 8
+  task_ids:
+    - exercism-python/grep
+    - exercism-python/list-ops
+    - exercism-python/phone-number
+    - exercism-python/robot-name
+    - exercism-python/pig-latin
+    - real-dev/d1-rate-limit
+    - real-dev/d1-retry-decorator
+    - real-dev/d1-json-schema
+    - real-dev/d1-auth-login
+    - real-dev/d5-todo-counter
+    - real-dev/d5-csv-dedupe
+    - real-dev/d5-log-errors-today
+    - real-dev/d5-env-var-redactor
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  judge_temperature: 0.0
+  swebench_image: hybrid-eval-python:latest
+
+resume: false

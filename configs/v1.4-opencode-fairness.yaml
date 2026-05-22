@@ -1,0 +1,54 @@
+# v1.4 opencode-fairness — resurrection experiment.
+#
+# Tests Patches D + C from the v1.4 opencode-fork audit:
+#   - Patch D: pair with gemma4:31b (never tried in v1.1.x)
+#   - Patch C: explicit NUDGE + REMINDER env vars (set at sweep launch)
+#
+# If the v1.1.x model-fit verdict was incomplete, this sweep moves opencode
+# hybrid pass-rate above 0/15.
+#
+# 2 strategies × 1 agent × 1 model × 8 tasks × 3 seeds = 48 rows, ~1.5h.
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.4-opencode-fairness
+out_dir: results/runs/v1.4-opencode-fairness
+
+models:
+  cloud: gpt-5.5
+  local: gemma4:31b
+
+router:
+  strategy: heuristic
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [puzzles, refactors]
+  agents: [opencode]
+  seeds: [42, 7, 13]
+  smoke: false
+  tasks_per_class:
+    puzzles: 5
+    refactors: 3
+  task_ids:
+    - exercism-python/grep
+    - exercism-python/list-ops
+    - exercism-python/phone-number
+    - exercism-python/robot-name
+    - exercism-python/pig-latin
+    - real-dev/d1-rate-limit
+    - real-dev/d1-retry-decorator
+    - real-dev/d5-todo-counter
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  judge_temperature: 0.0
+  swebench_image: hybrid-eval-python:latest
+
+resume: false

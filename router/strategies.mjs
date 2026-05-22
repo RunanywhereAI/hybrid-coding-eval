@@ -571,6 +571,47 @@ function cosine(a, b) {
 }
 
 // ----- registry --------------------------------------------------------------
+
+/**
+ * v1.4+ — `phase-aware` strategy.
+ *
+ * Deterministic Aider role-marker split: architect call → cloud, editor → local.
+ * Mirrors aider's architect/editor decomposition explicitly rather than scoring
+ * it heuristically. Should tighten heuristic's CI without changing point estimate
+ * on aider-driven cells. Falls through to legacy non-aider routing if neither
+ * marker is detected (lets the strategy work outside aider context too).
+ *
+ * Detection: looks for the aider-specific markers in the system message.
+ *   - "You are an expert software engineer" + "architect" → architect call → cloud
+ *   - "You are an expert software engineer" + "editor"   → editor call    → local
+ *
+ * Outside an aider call, falls back to legacyHeuristic for safe default.
+ */
+async function phaseAware(req) {
+  const messages = req?.messages || [];
+  const ctx = req?.ctx || {};
+  // Find the system message.
+  let systemText = "";
+  for (const m of messages) {
+    if (m && m.role === "system") {
+      systemText += extractContent(m) + "\n";
+    }
+  }
+  const lower = systemText.toLowerCase();
+  const isAider = lower.includes("you are an expert software engineer");
+  if (isAider) {
+    if (lower.includes("architect")) {
+      return { choice: "cloud", reason: "phase-aware: aider architect role → cloud", confidence: 1.0, meta: { phase: "architect" } };
+    }
+    if (lower.includes("editor")) {
+      return { choice: "local", reason: "phase-aware: aider editor role → local", confidence: 1.0, meta: { phase: "editor" } };
+    }
+  }
+  // Not aider — defer to legacy heuristic so non-aider agents still route reasonably.
+  const fallback = await legacyHeuristic(req);
+  return { ...fallback, reason: `phase-aware fallthrough: ${fallback.reason}`, meta: { ...(fallback.meta || {}), phase: "fallback" } };
+}
+
 export const STRATEGIES = {
   "always-local":   { fn: alwaysLocal,   description: "Control: always route to the local model. Useful for measuring local-only quality." },
   "always-cloud":   { fn: alwaysCloud,   description: "Control: always route to the cloud model. Useful for measuring cloud-only cost." },
@@ -579,4 +620,5 @@ export const STRATEGIES = {
   "llm-classifier": { fn: llmClassifier, description: "Single qwen3:0.6b call returns SIMPLE or COMPLEX. ~50–150ms latency overhead." },
   "embedding-knn":  { fn: embeddingKnn,  description: "Embed query with nomic-embed-text and kNN-vote against a 50-example labelled corpus." },
   "cascade":        { fn: cascade,       description: "Heuristic first; if score is borderline, fall back to llm-classifier as tie-breaker." },
+  "phase-aware":    { fn: phaseAware,    description: "v1.4+: Deterministic Aider role marker split (architect→cloud, editor→local). Falls through to legacy heuristic for non-aider agents." },
 };

@@ -120,22 +120,26 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Run the hybrid-coding-eval sweep (T4.1).",
     )
     p.add_argument(
-        "--categories",
+        "--task-classes",
         type=_csv,
-        default=["A", "B", "C"],
-        help="Comma-separated list of category letters (default: A,B,C).",
+        default=["puzzles", "refactors", "real-prs"],
+        help=(
+            "Comma-separated list of task classes (default: "
+            "puzzles,refactors,real-prs). v1.4 replaces the legacy "
+            "A/B/C category letters with explicit task-class names."
+        ),
     )
     p.add_argument(
-        "--routes",
+        "--agents",
         type=_csv,
         default=list(ROUTES),
-        help="Comma-separated list of route ids (default: R1,R2,R3).",
+        help="Comma-separated list of route ids (default: R6,R7,R8,R9,R10).",
     )
     p.add_argument(
         "--tasks",
         type=int,
         default=None,
-        help="Cap number of tasks per category (default: all).",
+        help="Cap number of tasks per class (default: all).",
     )
     p.add_argument(
         "--out",
@@ -154,7 +158,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="http://127.0.0.1:8787",
         help="Router proxy base URL (default: http://127.0.0.1:8787).",
     )
-    p.add_argument("--smoke", action="store_true", help="1 task per category.")
+    p.add_argument("--smoke", action="store_true", help="1 task per class.")
     p.add_argument(
         "--resume",
         action="store_true",
@@ -163,7 +167,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument(
         "--skip-scoring",
         action="store_true",
-        help="Run routes without scoring inline.",
+        help="Run agents without scoring inline.",
     )
     p.add_argument(
         "--router-strategy",
@@ -175,7 +179,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "heuristic",
             "llm-classifier",
             "embedding-knn",
-            "cascade",
+            "cascade","phase-aware",
         ],
         help=(
             "Routing strategy R3 + R6/R7/R8 use at each step. v1.1+: "
@@ -200,10 +204,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = p.parse_args(argv)
 
     # Validate.
-    for c in args.categories:
+    for c in args.task_classes:
         if c not in CATEGORY_SOURCES:
-            p.error(f"unknown category {c!r} (valid: {sorted(CATEGORY_SOURCES)})")
-    for r in args.routes:
+            p.error(f"unknown task class {c!r} (valid: {sorted(CATEGORY_SOURCES)})")
+    for r in args.agents:
         if r not in ROUTES:
             p.error(f"unknown route {r!r} (valid: {list(ROUTES)})")
     return args
@@ -227,7 +231,7 @@ def _progress_line(i: int, total: int, plan_item: TaskPlan, row: Any) -> str:
     else:
         status = "ran"
     return (
-        f"[{i:3d}/{total:3d}] {plan_item.category} {plan_item.route} "
+        f"[{i:3d}/{total:3d}] {plan_item.task_class} {plan_item.agent} "
         f"{plan_item.task_id:<48s} "
         f"wall={row.latency.wall_ms}ms "
         f"tokens={(row.tokens.prompt or 0) + (row.tokens.completion or 0)} "
@@ -243,48 +247,14 @@ def _write_progress(progress_path: Path, line: str) -> None:
 def _append_error(errors_path: Path, plan_item: TaskPlan, row: Any) -> None:
     with errors_path.open("a", encoding="utf-8") as fh:
         fh.write(
-            f"- `{plan_item.task_id}` + `{plan_item.route}` "
-            f"(category {plan_item.category}, source `{plan_item.source}`): "
+            f"- `{plan_item.task_id}` + `{plan_item.agent}` "
+            f"(category {plan_item.task_class}, source `{plan_item.source}`): "
             f"{row.error}\n"
         )
 
 
-_MINIONS_GIT_URL = "https://github.com/HazyResearch/minions.git"
-
-
-def _ensure_minions_if_needed(routes: list[str]) -> None:
-    """Auto-clone vendor/minions/ when R4 or R5 is requested.
-
-    R4 (Minion) and R5 (DevMinion) routes import from ``vendor/minions/``;
-    new users who haven't run ``./bench setup`` first get this clone for free
-    on first invocation. Silent no-op when not needed or already present.
-    """
-    if "R4" not in routes and "R5" not in routes:
-        return
-    target = _REPO_ROOT / "vendor" / "minions"
-    if (target / ".git").exists():
-        return
-    print(
-        f"[setup] R4/R5 routes require Stanford Minions — cloning into {target}…"
-    )
-    target.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        subprocess.run(
-            ["git", "clone", "--depth", "1", _MINIONS_GIT_URL, str(target)],
-            check=True,
-        )
-        print("[setup] vendor/minions/ ready.")
-    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
-        raise SystemExit(
-            f"R4/R5 routes need vendor/minions/ but auto-clone failed: {exc}\n"
-            f"Run manually: cd vendor && git clone {_MINIONS_GIT_URL}"
-        ) from exc
-
-
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-
-    _ensure_minions_if_needed(args.routes)
 
     out_dir: Path = args.out or (_REPO_ROOT / "results" / timestamp_dirname())
     out_dir = out_dir.resolve()
@@ -296,8 +266,8 @@ def main(argv: list[str] | None = None) -> int:
     # Build the plan first so --dry-run can show it without touching disk.
     task_ids = getattr(args, "task_ids", None) or None
     plan = build_task_plan(
-        categories=args.categories,
-        routes=args.routes,
+        task_classes=args.task_classes,
+        agents=args.agents,
         smoke=args.smoke,
         tasks_cap=args.tasks,
         task_ids=task_ids,
@@ -308,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Planned pairs: {len(plan)}")
         for i, item in enumerate(plan, start=1):
             print(
-                f"  [{i}/{len(plan)}] {item.category} {item.route} "
+                f"  [{i}/{len(plan)}] {item.task_class} {item.agent} "
                 f"{item.task_id} (source={item.source})"
             )
         return 0
@@ -330,10 +300,10 @@ def main(argv: list[str] | None = None) -> int:
         filtered: list[TaskPlan] = []
         for item in plan:
             if pair_already_done(
-                raw_path, item.task_id, item.route, args.router_strategy
+                raw_path, item.task_id, item.agent, args.router_strategy
             ):
                 print(
-                    f"[resume] skip {item.task_id} + {item.route} + "
+                    f"[resume] skip {item.task_id} + {item.agent} + "
                     f"{args.router_strategy}"
                 )
                 continue
@@ -361,13 +331,13 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:  # noqa: BLE001 — keep the sweep alive
             had_infra_error = True
             tb = traceback.format_exc(limit=4)
-            msg = f"[{i}/{total}] {item.category} {item.route} {item.task_id} UNCAUGHT: {exc}"
+            msg = f"[{i}/{total}] {item.task_class} {item.agent} {item.task_id} UNCAUGHT: {exc}"
             print(msg, file=sys.stderr)
             print(tb, file=sys.stderr)
             _write_progress(progress_path, msg)
             with errors_path.open("a", encoding="utf-8") as fh:
                 fh.write(
-                    f"- `{item.task_id}` + `{item.route}`: uncaught "
+                    f"- `{item.task_id}` + `{item.agent}`: uncaught "
                     f"{type(exc).__name__}: {exc}\n"
                 )
             continue

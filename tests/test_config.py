@@ -14,7 +14,6 @@ from hybrid_coding_eval.core.config.loader import (
 from hybrid_coding_eval.core.config.resolve import apply_overrides
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_VARIANTS = _REPO_ROOT / "configs" / "variants"
 
 
 def _minimal_yaml(tmp_path: Path) -> Path:
@@ -39,7 +38,8 @@ def test_load_minimal_config(tmp_path):
     assert cfg.models.local == "devstral:24b"
     # Defaults survive.
     assert cfg.models.judge == "claude-opus-4-7"
-    assert cfg.benchmark.categories == ["A", "B", "C"]
+    assert cfg.benchmark.task_classes == ["puzzles", "refactors", "real-prs"]
+    assert cfg.benchmark.agents == ["aider", "opencode", "mini-swe-agent"]
 
 
 def test_unknown_fields_rejected(tmp_path):
@@ -99,8 +99,10 @@ def test_apply_override_bool(tmp_path):
 
 def test_apply_override_list(tmp_path):
     cfg = load_config(_minimal_yaml(tmp_path))
-    merged = apply_overrides(cfg, ["benchmark.categories=A,B"])
-    assert merged.benchmark.categories == ["A", "B"]
+    merged = apply_overrides(
+        cfg, ["benchmark.task_classes=puzzles,refactors"]
+    )
+    assert merged.benchmark.task_classes == ["puzzles", "refactors"]
 
 
 def test_apply_override_invalid_path(tmp_path):
@@ -126,18 +128,6 @@ def test_canonical_sha_changes_with_override(tmp_path):
     cfg = load_config(_minimal_yaml(tmp_path))
     other = apply_overrides(cfg, ["models.cloud=gpt-5"])
     assert cfg.canonical_sha256() != other.canonical_sha256()
-
-
-# --------------------------------------------------------------------------- #
-# checked-in variants round-trip through the loader
-# --------------------------------------------------------------------------- #
-
-
-@pytest.mark.parametrize("name", sorted(p.stem for p in _VARIANTS.glob("[0-9]*.yaml")))
-def test_committed_variant_loads(name):
-    cfg = load_config(_VARIANTS / f"{name}.yaml")
-    assert cfg.variant_tag  # non-empty
-    assert cfg.out_dir.parts  # non-empty path
 
 
 # --------------------------------------------------------------------------- #

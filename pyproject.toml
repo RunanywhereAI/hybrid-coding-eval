@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hybrid-coding-eval"
-version = "1.3.0"
+version = "1.4.0"
 description = "Reproducible cost/latency/quality benchmark comparing local vs cloud vs hybrid LLM routing for coding tasks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,13 @@ dependencies = [
 dev = [
     "pytest>=8.3,<9",
     "ruff>=0.5,<1",
+]
+# Python-side agentic runners (R6 mini-swe-agent, R7 aider). R8/R9/R10
+# ship as separate Node/npm CLIs and are installed by ``bench setup``.
+# Install with: ``pip install -e ".[agents]"``.
+agents = [
+    "mini-swe-agent>=2.2,<3",
+    "aider-chat",
 ]
 
 [project.scripts]

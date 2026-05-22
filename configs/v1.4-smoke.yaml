@@ -1,0 +1,43 @@
+# v1.4 smoke — minimal end-to-end validation in ~30s.
+#
+# 1 task × 1 agent × 1 strategy × 1 seed × gemma4 = 1 row.
+# Used for fresh-clone verification: a stranger should be able to run
+#   ./bench sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
+# and see exactly 1 row land in results/runs/v1.4-smoke/always-cloud/seed-42/raw.jsonl.
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.4-smoke
+out_dir: results/runs/v1.4-smoke
+
+models:
+  cloud: gpt-5.5
+  # Pre-req: ollama pull gemma4:31b
+  local: gemma4:31b
+
+router:
+  strategy: always-cloud
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [puzzles]
+  agents: [aider]
+  seeds: [42]
+  smoke: false
+  tasks_per_class:
+    puzzles: 1
+  task_ids:
+    - exercism-python/grep
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  judge_temperature: 0.0
+  swebench_image: hybrid-eval-python:latest
+
+resume: false

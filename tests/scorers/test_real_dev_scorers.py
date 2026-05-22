@@ -1,13 +1,16 @@
-"""Tests for ``hybrid_coding_eval.benchmarks.real_dev.scorers`` (P2.1).
+"""Tests for ``hybrid_coding_eval.tasks.refactors.scorers`` (P2.1).
 
 Covers:
 
 - the shape-dispatcher (``score`` → ``_score_dN`` mapping);
 - per-shape smoke tests for D1 / D2 / D5 against the fixture's
   ``_reference/`` solution;
-- mocked D3 / D4 judge flow (we do NOT call Anthropic here);
 - the ``_extract_files_for_targets`` fenced-block matcher used by D1 / D5
   to map a multi-file model response onto the expected file layout.
+
+D3 / D4 (LLM-judge) coverage was dropped in v1.4 along with the deletion
+of ``scorers/llm_judge.py``; the refactor shape now lives under the new
+``refactors`` task class without the judge path.
 
 Docker-dependent tests (D1 / D5 end-to-end) are auto-skipped when the
 daemon is unreachable or the custom scorer image
@@ -20,7 +23,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -28,16 +30,14 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from hybrid_coding_eval.benchmarks.real_dev.adapter import Task, load_tasks  # noqa: E402
-from hybrid_coding_eval.benchmarks.real_dev.scorers import (  # noqa: E402
+from hybrid_coding_eval.core.metrics import Quality  # noqa: E402
+from hybrid_coding_eval.tasks.refactors.adapter import Task, load_tasks  # noqa: E402
+from hybrid_coding_eval.tasks.refactors.scorers import (  # noqa: E402
     _FIXTURES_ROOT,
     _extract_files_for_targets,
     _list_reference_targets,
-    _score_d3_d4,
     score,
 )
-from hybrid_coding_eval.core.metrics import Quality  # noqa: E402
-from hybrid_coding_eval.scorers.llm_judge import JudgmentResult  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Docker availability guards (copied pattern from test_functional_python.py)
@@ -105,22 +105,6 @@ def d2_task(all_tasks):
         if t.id == "real-dev/d2-click-3298":
             return t
     pytest.skip("d2-click-3298 not present in tasks.jsonl")
-
-
-@pytest.fixture
-def d3_task(all_tasks):
-    for t in all_tasks:
-        if t.id == "real-dev/d3-extract-validation-helper":
-            return t
-    pytest.skip("d3-extract-validation-helper not present")
-
-
-@pytest.fixture
-def d4_task(all_tasks):
-    for t in all_tasks:
-        if t.id == "real-dev/d4-review-pagination":
-            return t
-    pytest.skip("d4-review-pagination not present")
 
 
 @pytest.fixture
@@ -267,137 +251,3 @@ def test_d5_wrong_solution_fails(d5_task):
     """A no-op solution that just prints nothing must fail the stdout diff."""
     q = score(d5_task, "```python\nimport sys; sys.exit(0)\n```")
     assert q.functional_pass is False
-
-
-# --------------------------------------------------------------------------- #
-# D3 / D4 — judge path (mocked; no Anthropic calls)
-# --------------------------------------------------------------------------- #
-
-
-def _mk_judgment(winner: str, margin: float, a_score: float, b_score: float):
-    dims_a = {d: a_score for d in (
-        "correctness", "completeness", "style", "reasoning_depth", "practicality",
-    )}
-    dims_b = {d: b_score for d in (
-        "correctness", "completeness", "style", "reasoning_depth", "practicality",
-    )}
-    return JudgmentResult(
-        winner=winner,
-        margin=margin,
-        a_score=a_score,
-        b_score=b_score,
-        a_dimensions=dims_a,
-        b_dimensions=dims_b,
-        reasoning="synthetic",
-        raw_response_ab="",
-        raw_response_ba="",
-        judge_model="claude-opus-4-7",
-    )
-
-
-def test_d3_uses_judge_and_maps_to_quality(d3_task):
-    """D3 dispatch calls llm_judge.judge_pairwise and converts the result
-    to a judge_win_rate + composite Quality."""
-    fake = _mk_judgment(winner="A", margin=0.7, a_score=4.0, b_score=3.0)
-    with patch(
-        "hybrid_coding_eval.scorers.llm_judge.judge_pairwise",
-        return_value=fake,
-    ) as mocked:
-        q = score(d3_task, "arbitrary refactor output")
-    mocked.assert_called_once()
-    assert q.functional_pass is None  # judge path never sets functional_pass
-    # A won the synthetic judgment → win_rate == margin.
-    assert q.judge_win_rate == pytest.approx(0.7)
-    # composite == a_score / 5
-    assert q.composite == pytest.approx(4.0 / 5.0)
-
-
-def test_d4_uses_judge_and_maps_to_quality(d4_task):
-    """D4 dispatch uses the same judge path as D3."""
-    fake = _mk_judgment(winner="B", margin=0.9, a_score=2.0, b_score=4.5)
-    with patch(
-        "hybrid_coding_eval.scorers.llm_judge.judge_pairwise",
-        return_value=fake,
-    ) as mocked:
-        q = score(d4_task, "arbitrary review output")
-    mocked.assert_called_once()
-    # A (model) lost decisively, so win_rate == 1 - margin.
-    assert q.judge_win_rate == pytest.approx(1.0 - 0.9)
-    assert q.composite == pytest.approx(2.0 / 5.0)
-
-
-def test_d3_when_judge_raises_returns_unknown_quality(d3_task):
-    """If the judge blows up (e.g. ANTHROPIC_API_KEY missing) we return
-    unknown Quality rather than crashing the sweep."""
-    with patch(
-        "hybrid_coding_eval.scorers.llm_judge.judge_pairwise",
-        side_effect=RuntimeError("no api key"),
-    ):
-        q = score(d3_task, "whatever")
-    assert q.functional_pass is None
-    assert q.composite is None
-    assert q.judge_win_rate is None
-
-
-def test_d3_uses_gold_exemplar_as_side_b(d3_task):
-    """The judge must see the gold exemplar as candidate B (the thing to
-    beat), not as candidate A. This pins the convention used by
-    judge_to_quality(side='A')."""
-    captured = {}
-
-    def fake_judge(task, output_a, output_b, **kwargs):
-        captured["output_a"] = output_a
-        captured["output_b"] = output_b
-        return _mk_judgment(winner="A", margin=0.5, a_score=3.5, b_score=3.5)
-
-    with patch(
-        "hybrid_coding_eval.scorers.llm_judge.judge_pairwise",
-        side_effect=fake_judge,
-    ):
-        _ = _score_d3_d4(d3_task, "model refactor text")
-    assert captured["output_a"] == "model refactor text"
-    # The gold exemplar for d3-extract-validation-helper concatenates
-    # the reference app.py + validate.py; just check both filenames appear
-    # as headers in the concatenated string.
-    assert "### app.py" in captured["output_b"]
-    assert "### validate.py" in captured["output_b"]
-
-
-def test_d4_gold_exemplar_uses_gold_review_md(d4_task):
-    """D4 gold exemplar should be the raw markdown of gold_review.md, not
-    a concatenation with headers (D4 has exactly one gold file)."""
-    captured = {}
-
-    def fake_judge(task, output_a, output_b, **kwargs):
-        captured["output_b"] = output_b
-        return _mk_judgment(winner="A", margin=0.5, a_score=3.5, b_score=3.5)
-
-    with patch(
-        "hybrid_coding_eval.scorers.llm_judge.judge_pairwise",
-        side_effect=fake_judge,
-    ):
-        _ = _score_d3_d4(d4_task, "model review text")
-    # Gold review markdown starts with a top-level heading — assert it's
-    # carried through verbatim (no ``### gold_review.md`` wrapper).
-    assert captured["output_b"].lstrip().startswith("#")
-    assert "gold_review.md" not in captured["output_b"].splitlines()[0]
-
-
-# --------------------------------------------------------------------------- #
-# llm_judge._rubric_lines string-rubric compatibility (regression test for the
-# P1.3 gotcha — real_dev rubrics are dict[str, str], custom_arch rubrics are
-# dict[str, Rubric]).
-# --------------------------------------------------------------------------- #
-
-
-def test_rubric_lines_accepts_plain_string_descriptions(d3_task):
-    """real_dev tasks carry rubric = dict[str, str]. The judge's
-    _rubric_lines helper must render them without raising AttributeError."""
-    from hybrid_coding_eval.scorers.llm_judge import _rubric_lines
-
-    out = _rubric_lines(d3_task)
-    assert "correctness" in out
-    # The d3 task's correctness description starts with 'The refactor
-    # preserves behaviour' — verify a substring of the rubric actually
-    # made it into the formatted prompt.
-    assert "preserves" in out
