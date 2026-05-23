@@ -69,6 +69,39 @@ const _rawReminder = process.env.ROUTER_LOCAL_POST_TOOL_REMINDER;
 const LOCAL_POST_TOOL_REMINDER =
   _rawReminder === "disable" ? "" : (_rawReminder && _rawReminder.length > 0 ? _rawReminder : DEFAULT_LOCAL_POST_TOOL_REMINDER);
 
+// v1.4.1: hard cap on local generation length. Ollama's /api/chat defaults
+// to num_predict=-1 (unbounded) when the option is omitted, which exposes
+// us to model-degeneration loops. qwen3-coder:30b in particular has a
+// weak repeat_penalty (1.05) and was observed in v1.4 emitting 34MB of
+// repetitive output over 2.6 hours from a single agent call (cline grep)
+// — locking the ollama runner and blocking all subsequent calls until
+// it crashed. Cap at 4096 tokens by default; agents like aider that
+// already pass max_tokens are unaffected (their value wins via ??).
+// Override with ROUTER_LOCAL_NUM_PREDICT_CAP=<int>; set to -1 to disable.
+const LOCAL_NUM_PREDICT_CAP = parseInt(
+  process.env.ROUTER_LOCAL_NUM_PREDICT_CAP || "4096",
+  10,
+);
+// Companion safety net: per-request wall-clock timeout for the
+// upstream Ollama call. Even with num_predict capped, a runaway model
+// can take minutes to emit 4k tokens at 30B Q4 speeds — and the agent
+// has likely already given up by then. Default 180s — generous enough
+// for cold cache + long prompts on M4 Max, tight enough that a stuck
+// generation aborts before the agent times out at 600/900s. Set to 0
+// to disable.
+const LOCAL_REQUEST_TIMEOUT_MS = parseInt(
+  process.env.ROUTER_LOCAL_REQUEST_TIMEOUT_MS || "180000",
+  10,
+);
+// Stronger repeat penalty for local generation. qwen3-coder ships with
+// 1.05 which is below the typical 1.1 for non-coding models — overrides
+// the modelfile via runtime options. Affects all local calls; safe for
+// gemma4 (no penalty in modelfile → falls back to ollama default 1.1
+// anyway). Override with ROUTER_LOCAL_REPEAT_PENALTY=<float>.
+const LOCAL_REPEAT_PENALTY = parseFloat(
+  process.env.ROUTER_LOCAL_REPEAT_PENALTY || "1.1",
+);
+
 const CLOUD_BASE = process.env.CLOUD_BASE || "https://api.openai.com/v1";
 const CLOUD_MODEL = process.env.CLOUD_MODEL || "gpt-5.5";
 const CLOUD_FALLBACK_MODEL = process.env.CLOUD_FALLBACK_MODEL || "gpt-5";
@@ -144,6 +177,19 @@ function appendDecision(record) {
 // localBase is `http://127.0.0.1:11434/v1` (we strip the trailing `/v1`).
 async function fetchLocalOllamaAsOpenAI(localBase, openaiBody) {
   const ollamaBase = localBase.replace(/\/v1$/, "");
+  // v1.4.1: cap num_predict at LOCAL_NUM_PREDICT_CAP. The caller's
+  // max_tokens still wins when it's smaller (e.g. aider's small editor
+  // calls). Only when the caller omits max_tokens (cline / opencode
+  // sometimes do) do we substitute the cap. Use -1 cap to opt out.
+  const callerMax = openaiBody.max_tokens ?? openaiBody.max_completion_tokens;
+  let numPredict;
+  if (callerMax != null) {
+    numPredict = LOCAL_NUM_PREDICT_CAP > 0
+      ? Math.min(callerMax, LOCAL_NUM_PREDICT_CAP)
+      : callerMax;
+  } else {
+    numPredict = LOCAL_NUM_PREDICT_CAP > 0 ? LOCAL_NUM_PREDICT_CAP : undefined;
+  }
   const ollamaBody = {
     model: openaiBody.model,
     messages: openaiBody.messages,
@@ -152,17 +198,25 @@ async function fetchLocalOllamaAsOpenAI(localBase, openaiBody) {
     options: {
       temperature: openaiBody.temperature ?? undefined,
       top_p: openaiBody.top_p ?? undefined,
-      num_predict: openaiBody.max_tokens ?? openaiBody.max_completion_tokens ?? undefined,
+      num_predict: numPredict,
+      repeat_penalty: LOCAL_REPEAT_PENALTY,
     },
   };
   if (openaiBody.tools) ollamaBody.tools = openaiBody.tools;
   if (openaiBody.tool_choice) ollamaBody.tool_choice = openaiBody.tool_choice;
 
-  const res = await fetch(`${ollamaBase}/api/chat`, {
+  // v1.4.1: wall-clock abort. AbortSignal.timeout closes the socket on
+  // expiry — Ollama drops the in-flight generation when the client
+  // disconnects, freeing the runner for the next request.
+  const fetchOpts = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ollamaBody),
-  });
+  };
+  if (LOCAL_REQUEST_TIMEOUT_MS > 0) {
+    fetchOpts.signal = AbortSignal.timeout(LOCAL_REQUEST_TIMEOUT_MS);
+  }
+  const res = await fetch(`${ollamaBase}/api/chat`, fetchOpts);
 
   if (!res.ok) return res; // pass error through unchanged
 
@@ -1009,6 +1063,9 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  strategies: ${Object.keys(STRATEGIES).join(", ")}`);
   console.log(`  local : ${LOCAL_BASE} model=${LOCAL_MODEL}`);
   console.log(`  cloud : ${CLOUD_BASE} model=${CLOUD_MODEL} key=${CLOUD_API_KEY ? "present" : "MISSING"}`);
+  console.log(
+    `  local-guard: num_predict_cap=${LOCAL_NUM_PREDICT_CAP} request_timeout_ms=${LOCAL_REQUEST_TIMEOUT_MS} repeat_penalty=${LOCAL_REPEAT_PENALTY}`,
+  );
   console.log(`  log file: ${LOG_FILE}`);
 });
 
