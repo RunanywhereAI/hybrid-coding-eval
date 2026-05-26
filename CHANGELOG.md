@@ -4,6 +4,44 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-05-25
+
+**3-model agentic leaderboard.** v1.4.1 adds 936 rows across two new canonical sweeps (qwen3-coder:30b + qwen3.6:35b) — completing the 3-model leaderboard envisioned in the original v1.4 plan. Combined v1.4 + v1.4.1: **1,644 rows** of agentic-only data across 3 local models × 3 agents × 4-8 strategies × 13 tasks × 3 seeds.
+
+### Headline (v1.4.1 new — the marquee cells)
+
+| Cell | Pass-rate | Cloud-fraction |
+|---|---|---|
+| **cline + qwen3.6 + cascade + refactors** | **24/24 = 100%** [100, 100] | low (~5-10%) |
+| cline + qwen3.6 + heuristic + refactors | 22/24 = 92% | ~7% |
+| cline + qwen3-coder + heuristic + refactors | 22/24 = 92% | ~7% |
+| cline + qwen3.6 + always-local + puzzles | 15/15 = 100% [100, 100] | 0% |
+
+**cline + qwen3.6 is the new winner for refactors** — matches aider's marquee 96% / equals it under cascade, at a fraction of the cloud spend. **Two qwen variants (3-coder, 3.6) both deliver cline+heuristic+refactors at 92%.**
+
+### Three new findings
+
+1. **qwen3.6:35b is the unsung champion.** cline + qwen3.6 nails everything — 100% on puzzles always-local, 100% on refactors cascade, 92% heuristic. The model that wasn't in v1.4.0 turns out to be the strongest local for cline's protocol.
+
+2. **opencode is gemma4-specific.** opencode + gemma4 + heuristic + refactors = 71% (v1.4.0 resurrection). opencode + qwen3-coder = 21%. opencode + qwen3.6 = 33%. The v1.4.0 fix doesn't transfer to qwen models — opencode's runLoop requires the model to produce clean tool_calls, which gemma4 does and qwen models don't reliably.
+
+3. **Aider is model-sensitive too.** aider + heuristic + refactors = 96% on gemma4, 50% on qwen3.6, 33% on qwen3-coder. Aider's architect/editor protocol works best with gemma4's dense-generalist training.
+
+### Added
+
+- **`router/server.mjs` local-guard fix** (commit `c7392db`) — `ROUTER_LOCAL_NUM_PREDICT_CAP=4096`, `ROUTER_LOCAL_REQUEST_TIMEOUT_MS=180000`, `ROUTER_LOCAL_REPEAT_PENALTY=1.1`. Three model-agnostic env-overridable guards in `fetchLocalOllamaAsOpenAI()`. Discovered + fixed during v1.4.1 sweep 4 when qwen3-coder's weak `repeat_penalty=1.05` + unbounded `num_predict` (cline/opencode don't set `max_tokens`) caused a runaway repetition loop that crashed Ollama. Full RCA at `personal/iterations/v1.4.1/qwen3-coder-timeout-rca.md`.
+- **`configs/v1.4-canonical-qwen3-coder.yaml`** and **`configs/v1.4-canonical-qwen3.6.yaml`** — the two new canonical configs (came in v1.4-rc1 but actually exercised in v1.4.1).
+- **2 new release artifacts**: `results-v1.4.1.tar.gz` (15 MB, both qwen sweep dirs), v1.4.1 article HTML with code-generated visualizations.
+
+### Verified
+
+- The v1.4.0 marquee aider+heuristic+gemma4+refactors = 96% replicates exactly in the v1.4.1 data — refreshed code, same headline.
+- The v1.4.0 cline+gemma4+always-local+puzzles = 100% also confirmed in v1.4.1's gemma4 columns (no change).
+
+### Cost
+
+v1.4.1 sweeps spent ~$50 incremental cloud (gpt-5.5 list pricing). Total v1.4 line (v1.4.0 + v1.4.1): **~$140 list / ~$80 cache-adjusted across 1,644 rows.**
+
 ## [1.4.0] — 2026-05-22
 
 **Cleanup + production-pipeline release.** v1.4 deletes the legacy non-agentic R1–R5 routes and the experimental Stanford-Minion / Devminion wrappers — the harness is now **agent-only** (aider · opencode · mini-swe-agent · claude-code · cline). Drops the `Rn` prefix; renames `runners/` → `agents/` and `benchmarks/` → `tasks/`. Adds 5 production lifecycle commands (`./bench start|pause|resume|stop|status`). `bench sweep` auto-spawns the router proxy from `models.local`, so the canonical reproducer is now four copy-paste commands.
