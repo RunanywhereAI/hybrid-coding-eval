@@ -1,0 +1,45 @@
+# v1.5 HARD STRESS TEST — aider + gemma4:31b on the new D6 task class
+#
+# Stress-tests the v1.3 marquee profile (aider + heuristic) and its
+# always-cloud control on harder problems than D1/D5. 4 D6 tasks ×
+# 1 agent × 2 strategies × 3 seeds = 24 rows.
+#
+# Expected wall-time: ~25-35 min on M4 Max. Cost: ~$3-5 cloud spend.
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.5-hard-gemma4
+out_dir: results/runs/v1.5-hard-gemma4
+
+models:
+  cloud: gpt-5.5
+  local: gemma4:31b
+
+router:
+  strategy: heuristic
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [refactors]
+  agents: [aider]
+  seeds: [42, 7, 13]
+  smoke: false
+  tasks_per_class:
+    refactors: 4
+  task_ids:
+    - real-dev/d6-lru-ttl-cache
+    - real-dev/d6-token-bucket
+    - real-dev/d6-toposort
+    - real-dev/d6-mini-template
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  swebench_image: hybrid-eval-python:latest
+
+resume: true

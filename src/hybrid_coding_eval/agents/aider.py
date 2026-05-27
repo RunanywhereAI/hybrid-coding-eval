@@ -134,33 +134,39 @@ def _copy_fixture(task: Any, dst: Path) -> tuple[Path, list[Path]]:
     return test_path, editable
 
 
-_PYTEST_TAIL_RE = re.compile(
-    r"(?:(\d+)\s+passed)?(?:,\s*)?(?:(\d+)\s+failed)?(?:,\s*)?(?:(\d+)\s+error[s]?)?",
-    re.IGNORECASE,
-)
+_PYTEST_PASSED_RE = re.compile(r"(\d+)\s+passed", re.IGNORECASE)
+_PYTEST_FAILED_RE = re.compile(r"(\d+)\s+failed", re.IGNORECASE)
+_PYTEST_ERRORS_RE = re.compile(r"(\d+)\s+error", re.IGNORECASE)
+_PYTEST_SKIPPED_RE = re.compile(r"(\d+)\s+skipped", re.IGNORECASE)
 
 
 def _parse_pytest_summary(stdout: str) -> tuple[int, int]:
-    """Parse the last ``N passed, M failed, K errors`` line emitted by pytest.
+    """Parse the last ``N passed[, M failed][, K errors]`` line emitted by pytest.
 
     Returns ``(tests_passed, tests_total)``. ``(0, 0)`` if no summary line
     is detected (caller decides the fallback).
+
+    Pytest re-orders summary tokens depending on outcome:
+    - all-pass: ``"23 passed in 0.05s"``
+    - mixed   : ``"2 failed, 21 passed in 0.05s"`` (failed first, then passed)
+    - skipped : ``"5 passed, 2 skipped in 0.05s"``
+
+    We extract each count independently with its own regex so token order
+    doesn't matter.
     """
-    # Pytest's summary always lives on the LAST non-empty line; walk
-    # back from the tail and stop at the first line that mentions ``passed``,
-    # ``failed``, or ``error``.
     for line in reversed(stdout.splitlines()):
         stripped = line.strip("= ").strip()
         if not stripped:
             continue
-        if "passed" not in stripped and "failed" not in stripped and "error" not in stripped:
+        if (
+            "passed" not in stripped
+            and "failed" not in stripped
+            and "error" not in stripped
+        ):
             continue
-        m = _PYTEST_TAIL_RE.search(stripped)
-        if not m:
-            return (0, 0)
-        passed = int(m.group(1) or 0)
-        failed = int(m.group(2) or 0)
-        errors = int(m.group(3) or 0)
+        passed = int(m.group(1)) if (m := _PYTEST_PASSED_RE.search(stripped)) else 0
+        failed = int(m.group(1)) if (m := _PYTEST_FAILED_RE.search(stripped)) else 0
+        errors = int(m.group(1)) if (m := _PYTEST_ERRORS_RE.search(stripped)) else 0
         return passed, passed + failed + errors
     return (0, 0)
 

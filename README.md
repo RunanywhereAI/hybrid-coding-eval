@@ -5,7 +5,7 @@
 
 [![License: MIT](https://img.shields.io/badge/Code-MIT-blue.svg)](./LICENSE)
 [![Data: CC BY 4.0](https://img.shields.io/badge/Data-CC--BY--4.0-lightgrey.svg)](./LICENSE-DATA)
-[![Version](https://img.shields.io/badge/version-1.4.4-success.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.0-success.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![CI](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml)
 
@@ -241,7 +241,7 @@ The Node router and the Python harness both read the same
                   coding tasks},
   year         = {2026},
   howpublished = {\url{https://github.com/RunanywhereAI/hybrid-coding-eval}},
-  note         = {Version 1.4.4}
+  note         = {Version 1.5.0}
 }
 ```
 

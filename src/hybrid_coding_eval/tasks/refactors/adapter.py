@@ -81,7 +81,7 @@ from typing import Any
 _TASKS_PATH = Path(__file__).resolve().parent / "tasks.jsonl"
 _FIXTURES_ROOT = Path(__file__).resolve().parent / "fixtures"
 
-_VALID_SHAPES = ("D1", "D2", "D3", "D4", "D5")
+_VALID_SHAPES = ("D1", "D2", "D3", "D4", "D5", "D6")
 
 
 @dataclass(frozen=True)
@@ -95,8 +95,13 @@ class Task:
     category
         Always ``"refactors"`` for this adapter.
     shape
-        One of ``D1`` | ``D2`` | ``D3`` | ``D4`` | ``D5`` (legacy fixture
-        groupings carried over from the upstream dataset).
+        One of ``D1`` | ``D2`` | ``D3`` | ``D4`` | ``D5`` | ``D6``.
+        D1/D5 are the v1.4 canonical small-feature / one-shot script tasks.
+        D2 (bug-fix-from-stacktrace) and D3/D4 (refactor / review) are
+        retained but not in the canonical sweep — see ``scorers.py``.
+        D6 (v1.5) is the **hard-refactor** task class: single-file
+        implementation challenges with comprehensive pytest suites
+        deliberately calibrated to stress 30B local models.
     prompt
         The natural-language instruction, without inlined fixtures.
         Use :func:`task_prompt` to get the version sent to the model.

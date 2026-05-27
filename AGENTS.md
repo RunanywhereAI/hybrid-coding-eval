@@ -13,12 +13,14 @@ that publishes per-`(task-class, agent, strategy)` bootstrap-CI datasets
 for four coding agents (**aider · opencode · mini-swe-agent · cline**)
 across eight routing strategies, under five pricing scenarios.
 
-**Status (v1.4.4):** 4-agent leaderboard across 3 local models. Combined
-v1.4 dataset is 1,644 rows (frozen at v1.4.1). v1.4.3 + v1.4.4 are
-code-only cleanup releases — no new inference. Per-tag datasets ship as GitHub
-release tarballs (`results-v1.4.K.tar.gz`); the empirical record (tracked
-immutable runs in `results/runs/{01..04, 07, 11}/` + `docs/release-notes/`)
-stays tracked.
+**Status (v1.5.0):** 4-agent leaderboard across 3 local models, now
+with a **D6 hard-task class** that stress-tests the v1.4.1 top
+configurations. Combined v1.4 dataset is 1,644 rows (frozen at
+v1.4.1); v1.5 adds **60 rows** of hard-task data targeted at the
+top-3 configs. v1.4.3 + v1.4.4 are code-only cleanup releases. Per-tag
+datasets ship as GitHub release tarballs; the empirical record
+(tracked immutable runs in `results/runs/{01..04, 07, 11}/` +
+`docs/release-notes/`) stays tracked.
 
 For the canonical design + headline findings:
 - [`README.md`](./README.md) — landing page.

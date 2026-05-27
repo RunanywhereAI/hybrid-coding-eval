@@ -4,6 +4,40 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-05-27
+
+**Hard-task stress test release.** Adds a new D6 task shape with 4
+deliberately harder problems (LRU+TTL cache, multi-key token bucket,
+deterministic toposort + cycle detection, mini templating engine)
+that stress 30B local models beyond the D1/D5 calibration. Stress
+sweeps the v1.4.1 top-3 configs (aider+gemma4+heuristic,
+cline+qwen3.6+cascade, cline+qwen3.6+always-local) against the new
+hard tasks with 3 seeds each. Full notes at
+[`docs/release-notes/v1.5.0.md`](./docs/release-notes/v1.5.0.md).
+
+### Added
+
+- **New D6 task shape** under `refactors`: `d6-lru-ttl-cache`
+  (23 acceptance tests), `d6-token-bucket` (14 tests),
+  `d6-toposort` (16 tests), `d6-mini-template` (27 tests) =
+  80 acceptance assertions total. Each task is a single-file
+  implementation challenge with comprehensive pytest coverage,
+  scored via the existing D1/D5 overlay-and-run pipeline.
+- **New configs**: `configs/v1.5-hard-gemma4.yaml` and
+  `configs/v1.5-hard-qwen3.6.yaml` for the stress-test sweeps.
+- **New article**: `personal/reports/publish-v1.5/article.html`
+  with the §4.5 real-world walkthrough section, the §8.5
+  permutation matrix, and a new §12 hard-task stress test
+  section.
+- **New dataset**: `results/runs/v1.5-hard-gemma4/` and
+  `results/runs/v1.5-hard-qwen3.6/`.
+
+### Changed
+
+- `tasks/refactors/adapter.py` accepts `D6` as a valid task shape.
+- `tasks/refactors/scorers.py` dispatches `D6` through the
+  existing D1 overlay+pytest path.
+
 ## [1.4.4] — 2026-05-27
 
 **Fresh-user reproducibility patch.** Targets the last two paper cuts a

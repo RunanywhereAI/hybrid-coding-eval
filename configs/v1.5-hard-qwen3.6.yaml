@@ -1,0 +1,47 @@
+# v1.5 HARD STRESS TEST — cline + qwen3.6:35b on the new D6 task class
+#
+# Stress-tests the v1.4.1 champion profile (cline + cascade), its
+# zero-cloud sibling (cline + always-local), and the always-cloud
+# control on harder problems than D1/D5. 4 D6 tasks × 1 agent ×
+# 3 strategies × 3 seeds = 36 rows.
+#
+# Expected wall-time: ~50-90 min on M4 Max. Cost: ~$3-7 cloud spend
+# (cascade routes ~8% of calls to cloud on average).
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.5-hard-qwen3.6
+out_dir: results/runs/v1.5-hard-qwen3.6
+
+models:
+  cloud: gpt-5.5
+  local: qwen3.6:35b
+
+router:
+  strategy: cascade
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [refactors]
+  agents: [cline]
+  seeds: [42, 7, 13]
+  smoke: false
+  tasks_per_class:
+    refactors: 4
+  task_ids:
+    - real-dev/d6-lru-ttl-cache
+    - real-dev/d6-token-bucket
+    - real-dev/d6-toposort
+    - real-dev/d6-mini-template
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  swebench_image: hybrid-eval-python:latest
+
+resume: true

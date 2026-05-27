@@ -1,0 +1,38 @@
+# v1.5 HARD smoke — one D6 task on aider+gemma4+always-cloud, one seed.
+# Validates the new D6 scoring pipeline end-to-end before launching
+# the full overnight sweep.
+
+# yaml-language-server: $schema=./schema.json
+
+variant_tag: v1.5-hard-smoke
+out_dir: results/runs/v1.5-hard-smoke
+
+models:
+  cloud: gpt-5.5
+  local: gemma4:31b
+
+router:
+  strategy: always-cloud
+  port: 8787
+  banner: true
+
+benchmark:
+  task_classes: [refactors]
+  agents: [aider]
+  seeds: [42]
+  smoke: false
+  tasks_per_class:
+    refactors: 1
+  task_ids:
+    - real-dev/d6-toposort
+
+pricing:
+  primary: openai-gpt5.5
+  scenarios:
+    - openai-gpt5.5
+
+scoring:
+  skip: false
+  swebench_image: hybrid-eval-python:latest
+
+resume: false

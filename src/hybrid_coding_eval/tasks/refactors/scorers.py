@@ -462,6 +462,11 @@ def score(
         return _unknown_quality()
     if task.shape == "D5":
         return _score_d5(task, model_output)
+    if task.shape == "D6":
+        # D6 hard-refactors use the same overlay+pytest path as D1/D5.
+        # They differ only in the complexity calibration of the
+        # fixture + test suite, not in scoring shape.
+        return _score_d1(task, model_output)
     # Shouldn't reach here — the adapter rejects unknown shapes.
     raise ValueError(f"unknown shape {task.shape!r}")
 
