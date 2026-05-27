@@ -1,51 +1,41 @@
 # vendor/
 
-Read-only reference clones of third-party projects we study and selectively re-use.
-
-- `minions/` is **imported at runtime** by R4 (`runners/r4_minion.py`) and R5 (`runners/r5_devminion.py`). It is gitignored, but `./bench setup` (or any first `./bench run` with R4/R5 in routes) auto-clones it.
-- `lm-eval-harness-judge/` is a **reference-only** vendored snapshot — we adapt its prompts in `scorers/llm_judge.py` but do not import it.
+Optional third-party source we vendor or reference at build time. Treat
+everything under `vendor/` as **read-only**: patch the wrapper in
+`src/hybrid_coding_eval/agents/`, not the vendored source.
 
 ## Contents
 
-| Path | What | License | Tracked in git? | Size |
-|---|---|---|---|---|
-| `minions/` | Stanford Hazy Research reference clone (Minions protocol) | MIT | No (large, ~8.5 MB) | ~8.5 MB |
-| `lm-eval-harness-judge/` | FastChat MT-Bench LLM-judge source | Apache 2.0 | Yes (small, <1 MB) | ~600 KB |
+| Path        | What it is                                              | License | Tracked in git? |
+| ----------- | ------------------------------------------------------- | ------- | --------------- |
+| `opencode/` | Fork of the `opencode` agent used by `agents/opencode.py` | MIT     | No (gitignored) |
 
----
+## opencode/
 
-## minions/
+- **Upstream fork**: `https://github.com/RunanywhereAI/opencode-1.git`,
+  branch `feat/hybrid-routing-plugin`. The env vars
+  `OPENCODE_GIT_URL` / `OPENCODE_GIT_REF` let you pin a different
+  fork/ref without code edits.
+- **License**: MIT (upstream).
+- **What we use**: the `opencode` CLI binary, invoked as a subprocess
+  by `src/hybrid_coding_eval/agents/opencode.py`. No library code is
+  imported.
+- **Auto-install**: only cloned when you opt in:
 
-- **Source**: https://github.com/HazyResearch/minions
-- **Paper**: *Minions: Cost-efficient Collaboration Between On-device and Cloud Language Models* (arXiv 2502.15964)
-- **License**: MIT
-- **What it is**: Stanford Hazy Research's implementation of the Minions protocol — stateful Q&A between a local worker and cloud supervisor.
-- **Why we reference it**: The `DevMinion` variant (`minions/minion_code.py`) has a 5-stage runbook → execute → review → edit → synthesize loop that informs our post-MVP R4/R5 routes. Worth reading as prior art; reusable Python classes.
-- **First cloned**: ~2026-04 into `opencode/EXTERNAL/`, moved here during consolidation 2026-05-05.
-- **Tracked in git**: No — gitignored in root `.gitignore` under `vendor/minions/`. The clone is ~8.5 MB and noisy.
-- **Auto-install**: `./bench setup` clones this for you on first run. `./bench run` also auto-clones on demand if a variant config selects R4 or R5 and `vendor/minions/` is missing.
-- **Manual refresh** (if you ever need to re-clone explicitly):
   ```bash
-  rm -rf vendor/minions && cd vendor && git clone https://github.com/HazyResearch/minions.git
+  BENCH_SETUP_OPENCODE=1 ./bench setup
   ```
 
----
+  `./bench setup` skips the opencode clone by default because the fork
+  is large and most users only benchmark the other three agents.
+- **Manual refresh**:
 
-## lm-eval-harness-judge/
+  ```bash
+  rm -rf vendor/opencode
+  git clone --branch feat/hybrid-routing-plugin \
+      https://github.com/RunanywhereAI/opencode-1.git vendor/opencode
+  ```
 
-- **Source**: https://github.com/lm-sys/FastChat/tree/587d5cfa1609a43d192cedb8441cac3c17db105d/fastchat/llm_judge
-- **Upstream commit**: `587d5cfa1609a43d192cedb8441cac3c17db105d`
-- **Fetched**: 2026-05-05
-- **License**: Apache 2.0 (see `lm-eval-harness-judge/LICENSE`)
-- **What it is**: The canonical MT-Bench LLM-as-judge code from `lm-sys/FastChat`. The directory name says "lm-eval-harness" because EleutherAI's `lm-evaluation-harness` re-uses this exact implementation for its MT-Bench task — the source of truth lives in FastChat.
-- **Why we reference it**: `scorers/llm_judge.py` (task T3.3) adapts these prompts and the position-swap bias-correction methodology for our pairwise category-C judgments. We do not import FastChat as a Python dependency — it has many transitive deps (Gradio, vLLM, etc.) we do not need.
-- **Tracked in git**: Yes — the entire `src/` is only ~600 KB, so checking it in makes the repo self-contained and pins the exact reference our write-up cites. No giant model weights, notebooks, or datasets are included.
-- **See also**: `lm-eval-harness-judge/ATTRIBUTION.md` for the fetch command, adopted-vs-leave-behind notes, and re-fetch procedure.
-
-### Key files
-
-- `src/common.py` — prompt templates, judge API calls, response parsing regexes.
-- `src/gen_judgment.py` — pairwise / single-answer judgment generation loop.
-- `src/data/judge_prompts.jsonl` — the actual prompt templates (pair-v2, pair-math-v1, single-v1, single-math-v1).
-- `src/data/mt_bench/question.jsonl` — the 80-question MT-Bench set (for reference; we do not run MT-Bench itself).
-- `src/README.md` — upstream README with usage/recipe.
+If you find a bug in `vendor/opencode/`, **don't patch it here** —
+patch our wrapper in `agents/opencode.py` instead, and file an
+upstream issue/PR on the fork.

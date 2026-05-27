@@ -37,9 +37,8 @@ def test_load_minimal_config(tmp_path):
     assert cfg.models.cloud == "gpt-5.5"
     assert cfg.models.local == "devstral:24b"
     # Defaults survive.
-    assert cfg.models.judge == "claude-opus-4-7"
-    assert cfg.benchmark.task_classes == ["puzzles", "refactors", "real-prs"]
-    assert cfg.benchmark.agents == ["aider", "opencode", "mini-swe-agent"]
+    assert cfg.benchmark.task_classes == ["puzzles", "refactors"]
+    assert cfg.benchmark.agents == ["aider", "opencode", "cline"]
 
 
 def test_unknown_fields_rejected(tmp_path):

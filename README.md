@@ -1,169 +1,243 @@
 # hybrid-coding-eval
 
-> *A benchmark + harness that answers, with reproducible numbers, the question:*
-> ***For my coding task and my hardware — should I run it local, hybrid, or cloud?***
+> *Should this coding task run on my laptop, the cloud, or split between
+> them? Answer it empirically, on your hardware, with reproducible numbers.*
 
-[![License: MIT](https://img.shields.io/badge/Code-MIT-blue.svg)](./LICENSE) [![Data: CC BY 4.0](https://img.shields.io/badge/Data-CC--BY--4.0-lightgrey.svg)](./LICENSE-DATA) [![Version](https://img.shields.io/badge/version-1.4.1-success.svg)](./CHANGELOG.md) [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/) [![CI](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/Code-MIT-blue.svg)](./LICENSE)
+[![Data: CC BY 4.0](https://img.shields.io/badge/Data-CC--BY--4.0-lightgrey.svg)](./LICENSE-DATA)
+[![Version](https://img.shields.io/badge/version-1.4.2-success.svg)](./CHANGELOG.md)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![CI](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml)
 
-**Status (v1.4.1):** 3-model agentic leaderboard. The agent-only surface (five agents: **R6 mini-swe-agent · R7 aider · R8 opencode · R9 claude-code · R10 cline**) is the sole sweep target. `bench sweep` auto-spawns the router proxy from `models.local`, so the reproducer is four copy-paste commands. v1.4 combined dataset: **1,644 rows** across 3 local models × 3–5 agents × 4–8 strategies × 13 tasks × 3 seeds — see `configs/v1.4-canonical-{gemma4,qwen3-coder,qwen3.6}.yaml` and `docs/release-notes/v1.4.1.md`.
+A reproducible benchmark harness that measures four coding agents
+(`aider`, `opencode`, `mini-swe-agent`, `cline`) across eight routing
+strategies and three local models, against frontier cloud LLMs. v1.4
+canonical dataset: **1,644 rows** spanning 3 local models × 4 strategies
+× 13 tasks × 3 seeds. Every published number traces back to a single row
+in `results/runs/<sweep>/raw.jsonl` priced by a versioned pricing table.
 
-**Headline (v1.4.1):** **cline + qwen3.6:35b + cascade + refactors = 24/24 = 100% [100, 100]** at ~5–10% cloud-fraction — the cleanest cell in the benchmark. The v1.4.0 marquee (**aider + gemma4:31b + heuristic + refactors = 96% [88, 100]** at 48% cloud-fraction) replicates exactly under refreshed code. **cline + (gemma4 OR qwen3.6) + always-local + puzzles = 15/15 = 100%** — 30B local-only nails Exercism Python.
+## TL;DR results (v1.4.1)
 
-## Quickstart (~30 minutes)
+| Cell                                                | Pass-rate         | Cloud-fraction (tokens) | Notes                                  |
+| --------------------------------------------------- | ----------------- | ----------------------- | -------------------------------------- |
+| `cline + qwen3.6 + cascade + refactors`             | **24/24 = 100%**  | **10.3%**               | Cleanest hybrid cell in the benchmark  |
+| `cline + qwen3.6 + heuristic + refactors`           | 23/24 = 96%       | 15.6%                   | 96% pass at 15.6% cloud tokens         |
+| `aider + gemma4 + heuristic + refactors`            | 23/24 = 96% [88, 100] | 15.8%               | v1.4.0 marquee — replicates exactly    |
+| `cline + (gemma4 OR qwen3.6) + always-local + puzzles` | 15/15 = 100%   | 0%                      | First 30B local-only Exercism win      |
+| `opencode + gemma4 + heuristic + refactors`         | 17/24 = 71%       | 46.3%                   | Gemma4-specific; doesn't transfer      |
+
+Full numbers + CIs + per-cell cost breakdown:
+[`docs/release-notes/v1.4.1.md`](./docs/release-notes/v1.4.1.md) ·
+[`personal/audits/v1.4-cost-token-analysis.md`](#) (data-backed cost table).
+
+## Quickstart (~15 minutes)
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/RunanywhereAI/hybrid-coding-eval && cd hybrid-coding-eval
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+git clone https://github.com/RunanywhereAI/hybrid-coding-eval
+cd hybrid-coding-eval
 
-# 2. Configure + setup
-cp .env.example .env                      # add OPEN_AI_API_KEY (+ ANTHROPIC_API_KEY for judge)
-./bench setup                             # builds Docker image, pulls aux models, installs aider
+# One-command bootstrap — checks prereqs, installs deps, builds the
+# sandbox image, pulls the aux models, runs the smoke sweep.
+./scripts/reproduce.sh --smoke
 
-# 3. Pull a local model
-ollama pull gemma4:31b                    # the v1.4 canonical baseline (~19 GB)
-
-# 4. Smoke + sweep — `bench sweep` auto-spawns the router proxy
-./bench sweep --config configs/v1.4-canonical.yaml \
-  --strategies always-cloud,always-local,heuristic,cascade --seeds 42 --smoke
-./bench analyze results/runs/v1.4-canonical/
+# Inspect the result of the smoke sweep:
+./bench analyze results/runs/v1.4-smoke
+jq '.cells' results/runs/v1.4-smoke/bootstrap_cis.json
 ```
 
-The smoke sweep runs 1 task × the requested strategies through the full pipeline and writes graded rows to `results/runs/v1.4-canonical/<strategy>/seed-42/raw.jsonl`. If it completes cleanly, the harness is configured. Full reproduction: [`docs/REPRODUCING.md`](./docs/REPRODUCING.md).
+If the smoke sweep completes cleanly, the harness is wired up. Then
+benchmark a real local model:
 
-> **Note:** v1.4's `bench sweep` reads `models.local` from the config and auto-spawns `router/server.mjs` with `LOCAL_MODEL=<model>`. Pass `--external-router` if you want to manage the router yourself (e.g. `(cd router && ./start.sh) &`).
+```bash
+ollama pull gemma4:31b                     # or qwen3-coder:30b / qwen3.6:35b
+./scripts/reproduce.sh --config configs/v1.4-canonical-gemma4.yaml \
+    --strategies always-cloud,always-local,heuristic,cascade \
+    --seeds 42,7,13
+# ~10–15 hours on M4 Max 64 GB, ~$30–50 cloud spend at gpt-5.5 list.
+```
+
+When it finishes, your numbers should land within the bootstrap CIs of
+the canonical v1.4 dataset (download via
+`gh release download v1.4.1 -p results-v1.4.1.tar.gz` for comparison).
 
 ## What's in the box
 
-| Component | What it is |
-| --- | --- |
-| **5 agentic routes** | R6 mini-swe-agent · R7 aider · R8 opencode · R9 claude-code · R10 cline |
-| **18 tasks** | X Exercism Python (10) · D real-developer refactors (8) — see `src/hybrid_coding_eval/benchmarks/` |
-| **8 routing strategies** | always-cloud · always-local · rules · heuristic (agent-aware) · llm-classifier · embedding-knn · cascade · cascade-tuned |
-| **6 pricing scenarios** | gpt-5.5 · gpt-5 · gpt-5-mini · opus-4.7 · sonnet-4.6 · haiku-4.5 |
-| **3 local models in canonical** | gemma4:31b (baseline) · qwen3-coder:30b · qwen2.5-coder:32b |
-| **Functional scoring** | Sandboxed Python via Docker (`--network none`, memory caps, wall-clock timeouts) |
-| **Judge** | claude-opus-4-7 (cross-vendor; pair-v2 with position-swap bias correction) |
-| **Statistics** | Per-(category, route, strategy) cell bootstrap 95% CIs on pass-rate, cost, cloud-fraction, wall-ms |
+| Component                | What                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| **4 coding agents**      | `aider` · `opencode` · `mini-swe-agent` · `cline`                                 |
+| **8 routing strategies** | `always-cloud` · `always-local` · `rules` · `heuristic` · `llm-classifier` · `embedding-knn` · `cascade` · `phase-aware` |
+| **2 task classes (v1.4)**| `puzzles` (Exercism Python) · `refactors` (real-PR D-tasks); `real-prs` (SWE-bench Verified) lands v1.5 |
+| **6 pricing scenarios**  | `gpt-5.5` · `gpt-5` · `gpt-5-mini` · `claude-opus-4-7` · `claude-sonnet-4-6` · `claude-haiku-4-5` |
+| **Functional scoring**   | Sandboxed Python via Docker (`--network none`, memory caps, 60s timeout)          |
+| **Statistics**           | Per-cell bootstrap 95% CIs on pass-rate, cost, cloud-fraction, wall-ms            |
 
-> v1.4 deletes the legacy non-agentic R1/R2/R3 routes and the experimental R4/R5 Stanford-Minion wrappers. The historical 250-row v3 dataset stays tracked under `results/runs/07-v3-devstral-all-routes/` for reference; new sweeps go through the agentic surface.
+See [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md) for the
+canonical design doc: what the four agents do, how each routing strategy
+decides, what each task class measures, and the result schema.
+
+## How it works (60-second tour)
+
+```text
+./bench sweep --config configs/v1.4-canonical-gemma4.yaml
+    │
+    ├── spawns ONE Node router proxy on :8787
+    │   (LOCAL_MODEL + CLOUD_MODEL injected from config)
+    │
+    └── for each (strategy, seed):
+        for each (task, agent):
+            agent.run(task, proxy_url=":8787")
+                │
+                ├── agent makes N LLM calls through the router
+                ├── router picks local-vs-cloud per call (current strategy)
+                ├── router logs the decision to logs/decisions.jsonl
+                ├── tokens come back via OpenAI-shape `usage` object
+                │
+            scorer runs the diff in a Docker sandbox
+            row written to results/runs/<sweep>/<strategy>/seed-<seed>/raw.jsonl
+
+./bench analyze results/runs/<sweep>/
+    │
+    ├── aggregate.json     — per-cell medians + totals
+    ├── bootstrap_cis.json — 95% CIs on pass_rate / cost / cloud_fraction
+    ├── decision_matrix.md — Markdown table with "Recommended" column
+    └── charts/            — Pareto scatter + quality/cost heatmaps
+```
+
+Each agent is a thin wrapper around an externally-maintained tool. This
+repo owns the routing, the scoring, the analysis, and the result schema —
+it doesn't try to be a coding agent.
 
 ## Benchmark a new local model
 
+Three commands:
+
 ```bash
-ollama pull <new-model>                                            # e.g. ollama pull deepseek-coder-v3:33b
-# Edit configs/v1.4-canonical.yaml — change models.local to your tag
-./bench sweep --config configs/v1.4-canonical.yaml \
-  --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench analyze results/runs/v1.4-canonical/
+ollama pull <new-model>
+./scripts/reproduce.sh \
+    --config configs/v1.4-canonical-gemma4.yaml \
+    --set models.local=<new-model> \
+    --set out_dir=results/runs/v1.4-<new-model> \
+    --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
+./bench analyze results/runs/v1.4-<new-model>
 ```
 
-Compare your `bootstrap_cis.json` against the v1.4.0 canonical baseline (download via `gh release download v1.4.0 -p results-v1.4.0.tar.gz`). Full walkthrough: [`docs/BENCHMARK_NEW_MODEL.md`](./docs/BENCHMARK_NEW_MODEL.md).
+Then look at the headline cell:
 
-## Headline findings (preview — v1.3.0 carry-over)
+```bash
+jq '.cells["D::cline::heuristic"].pass_rate' \
+   results/runs/v1.4-<new-model>/bootstrap_cis.json
+```
 
-> *v1.4 results land with the canonical sweep in [`docs/release-notes/v1.4.0.md`](./docs/release-notes/v1.4.0.md). Numbers below are v1.3.0's gemma4:31b results, retained as a preview of the methodology and shape.*
+`D::cline::heuristic` is the canonical "is this model good at hybrid
+refactor work?" cell. Compare your point estimate against the existing
+v1.4.1 results (96% qwen3.6 / 92% qwen3-coder / 96% gemma4).
 
-**gemma4:31b on real-developer D-tasks (n=24/cell, 95% bootstrap CIs):**
+The full add-a-model walkthrough lives in
+[`docs/HYBRID_ROUTING_DESIGN.md §9`](./docs/HYBRID_ROUTING_DESIGN.md#9-add-a-new-local-model).
 
-| Strategy | Pass-rate | Cloud-frac (tokens) | Notes |
-|---|---|---|---|
-| always-cloud (gpt-5.5) | **1.00** [1.00, 1.00] | 1.00 | gpt-5.5 ceiling |
-| always-local (gemma4:31b) | 0.88 [0.71, 1.00] | 0.00 | gemma4 alone matches cloud within CI |
-| **heuristic** (agent-aware) | **0.96** [0.88, 1.00] | 0.79 | **Pareto win** — equivalent quality at ~21% token-spend reduction |
-| cascade | 0.88 [0.71, 1.00] | 0.53 | Cheaper but matches always-local |
+## Sweep lifecycle (long sweeps)
 
-The v1.3.0 result that "hybrid coding is statistically equivalent to cloud-only on practical refactoring tasks at ~20% lower cloud spend, given the right local model" is the working hypothesis going into v1.4. v1.4 stress-tests it across the full 5-agent surface and 18-task expanded set.
+For an overnight sweep you can detach + pause + resume:
 
-Full v1.3.0 findings: [`personal/iterations/v1.3.0/findings.md`](./personal/iterations/v1.3.0/findings.md) (maintainer's gitignored notes) — also released as the GH release-page artefact for v1.3.0.
+```bash
+./bench start  --config configs/v1.4-canonical-qwen3.6.yaml \
+               --strategies always-cloud,always-local,heuristic,cascade \
+               --seeds 42,7,13         # detaches, returns immediately
+./bench status                          # PID + row count + RUNNING/PAUSED
+./bench pause                           # frees the laptop, keeps Ollama warm
+./bench resume                          # picks up at the next un-written row
+./bench stop                            # also kills Ollama (~19 GB freed)
+```
+
+State lives in `/tmp/hcev-sweep.json`. Resume is row-level (`raw.jsonl`
+is appended to as rows complete) so a crash mid-sweep loses at most one
+row.
 
 ## Repo layout
 
 ```text
 hybrid-coding-eval/
-├── README.md                      ← you are here
-├── AGENTS.md                      ← canonical guide for AI coding agents
-├── CHANGELOG.md                   ← release history (Keep a Changelog)
-├── CONTRIBUTING.md                ← how to add a model, task, or strategy
-├── LICENSE / LICENSE-DATA / LICENSE.md / NOTICE.md
-├── bench                          ← top-level CLI dispatcher
-├── .github/workflows/ci.yml       ← CI (ruff + pytest -m 'not slow')
+├── README.md                         ← you are here
+├── AGENTS.md                         ← canonical guide for AI coding agents
+├── CHANGELOG.md                      ← release history
+├── CONTRIBUTING.md                   ← how to add a model / agent / strategy
+├── SECURITY.md                       ← vuln-report channel
+├── LICENSE                           ← MIT (code)
+├── LICENSE-DATA                      ← CC-BY-4.0 (datasets, docs prose)
+├── LICENSE.md + NOTICE.md            ← per-file license map + attributions
+├── bench                             ← top-level CLI dispatcher
+├── scripts/reproduce.sh              ← one-command reproducer
+├── .github/workflows/ci.yml          ← pytest + ruff
 │
 ├── src/hybrid_coding_eval/
-│   ├── core/                      ← config, experiment, metrics, pricing, results, sandbox
-│   ├── agents/                    ← R6..R10 agentic-route implementations (post-v1.4 rename of runners/)
-│   ├── scorers/                   ← functional (Docker), SWE-bench, LLM judge
-│   ├── benchmarks/                ← Exercism Python (X) + real-dev D-tasks
-│   ├── analysis/                  ← aggregate, bootstrap CIs, cost-scenarios, token-budget
-│   ├── viz/                       ← Pareto + heatmap charts
-│   └── cli/                       ← bench, run, sweep, setup, rescore, rejudge, analyze, token-budget
+│   ├── core/                         ← config, experiment, metrics, pricing, paths
+│   ├── agents/                       ← aider, opencode, mini_swe, cline
+│   ├── scorers/                      ← functional (Docker), SWE-bench
+│   ├── tasks/                        ← puzzles, refactors, real_prs
+│   ├── analysis/                     ← aggregate, bootstrap, decision_matrix, cost_scenarios
+│   ├── viz/                          ← Pareto + heatmap charts
+│   └── cli/                          ← bench dispatcher + subcommands
 │
-├── router/                        ← zero-deps Node hybrid proxy on :8787 (auto-spawned by `bench sweep`)
+├── router/                           ← zero-deps Node hybrid proxy
 ├── configs/
-│   ├── v1.4-canonical.yaml        ← the canonical v1.4 sweep config
-│   ├── pricing/pricing_tables.json   ← 6 pricing scenarios, SHA256-pinned
-│   ├── router/corpus.json            ← embedding-kNN training data
-│   ├── schema.json                   ← auto-generated from BenchConfig
-│   └── variants/*.yaml               ← legacy per-variant configs (v1.0–v1.3)
+│   ├── v1.4-canonical-{gemma4,qwen3-coder,qwen3.6}.yaml
+│   ├── v1.4-smoke.yaml
+│   ├── pricing/pricing_tables.json   ← shared by Python and Node
+│   └── router/corpus.json            ← embedding-kNN training data
 │
-├── vendor/                        ← third-party (read-only)
-├── tests/                         ← pytest suite (SWE-bench Docker tests marked `slow`)
-│
-├── results/
-│   └── runs/                      ← canonical sweep datasets (raw.jsonl, env-manifest, charts)
-│
+├── tests/                            ← pytest (Docker tests marked `slow`)
+├── results/                          ← run datasets; v1.4+ released as tarballs
 └── docs/
-    ├── REPRODUCING.md             ← copy-paste v1.4 reproduction
-    ├── BENCHMARK_NEW_MODEL.md     ← add-a-new-local-model walkthrough
-    ├── METHODOLOGY.md             ← scoring rubrics + biases
-    ├── ROUTING_STRATEGIES.md      ← 8-strategy deep dive
-    ├── AGENTIC_ROUTES.md          ← R6..R10 design + correlation-id attribution
-    ├── ARCHITECTURE.md            ← code layout + data flow
-    └── release-notes/
-        └── v1.4.0.md              ← v1.4.0 release notes (tracked in git)
+    ├── HYBRID_ROUTING_DESIGN.md      ← THE design doc (strategies + agents + methodology)
+    └── release-notes/v1.4.*.md       ← per-release findings
 ```
 
 ## Reproducibility
 
-Every published number traces back to a `(task_id, route, variant_tag, hardware_profile_ref, git_sha)` tuple in `results/runs/.../raw.jsonl`. Costs are derived from `tokens × pinned pricing` at read time — pricing edits ripple through `./bench token-budget` without re-running inference.
+Every row carries `task_id`, `route`, `router_strategy`, `seed`, `cloud_model_id`,
+`local_model_id`, `config_sha`, `hardware_profile_ref`. Costs are derived
+from `tokens × pinned pricing` at analyse-time — pricing edits ripple
+through `bench analyze` without re-running inference. The pricing table
+SHA256 is logged with each pricing-table import.
 
-```bash
-./bench sweep --config configs/v1.4-canonical.yaml \
-  --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench analyze results/runs/v1.4-canonical/
-./bench token-budget results/runs/v1.4-canonical/
-```
-
-Step-by-step instructions in [`docs/REPRODUCING.md`](./docs/REPRODUCING.md), including hardware/OS notes, troubleshooting, the four-command quickstart, and a "how to read the results" section that maps each headline number to its exact `bootstrap_cis.json` path.
+The Node router and the Python harness both read the same
+`configs/pricing/pricing_tables.json` and compute identical costs
+(verified by `tests/test_pricing_parity.py`).
 
 ## Citation
 
 ```bibtex
 @misc{monga2026hybridcodingeval,
   author       = {Monga, Sanchit and contributors},
-  title        = {hybrid-coding-eval: reproducible cost/latency/quality benchmark for local vs cloud vs hybrid LLM routing on coding tasks},
+  title        = {hybrid-coding-eval: reproducible cost/latency/quality
+                  benchmark for local vs cloud vs hybrid LLM routing on
+                  coding tasks},
   year         = {2026},
   howpublished = {\url{https://github.com/RunanywhereAI/hybrid-coding-eval}},
-  note         = {Version 1.4.1}
+  note         = {Version 1.4.2}
 }
 ```
 
-## License and attribution
+## License + attribution
 
-- **Code** (harness, router, agents, scorers, analysis, viz, CLI, tests): MIT — see [`LICENSE`](./LICENSE).
-- **Results, metrics, figures, prose**: CC-BY-4.0 — see [`LICENSE-DATA`](./LICENSE-DATA).
-- **Third-party vendored code**: per-upstream — see [`NOTICE.md`](./NOTICE.md) and [`LICENSE.md`](./LICENSE.md).
+- **Code** (`src/`, `router/`, `tests/`, `configs/`, `bench`,
+  `scripts/`): MIT — see [`LICENSE`](./LICENSE).
+- **Datasets, charts, docs prose** (`results/`, `docs/`): CC-BY-4.0 —
+  see [`LICENSE-DATA`](./LICENSE-DATA).
+- **Per-file mapping**: [`LICENSE.md`](./LICENSE.md).
+- **Third-party attribution**: [`NOTICE.md`](./NOTICE.md).
 
-## Where to read next
+## Read next
 
-1. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — four-command v1.4 reproducer + how-to-read-results
-2. [`docs/BENCHMARK_NEW_MODEL.md`](./docs/BENCHMARK_NEW_MODEL.md) — add-a-new-local-model walkthrough
-3. [`docs/METHODOLOGY.md`](./docs/METHODOLOGY.md) — scoring rubrics, biases acknowledged, what we do and don't claim
-4. [`docs/ROUTING_STRATEGIES.md`](./docs/ROUTING_STRATEGIES.md) — 8-strategy deep dive
-5. [`docs/AGENTIC_ROUTES.md`](./docs/AGENTIC_ROUTES.md) — R6..R10 design + correlation-id attribution
-6. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — code layout + data flow
-7. [`docs/release-notes/v1.4.0.md`](./docs/release-notes/v1.4.0.md) — v1.4.0 canonical findings
-8. [`AGENTS.md`](./AGENTS.md) — folder-by-folder guide for AI coding agents
+1. [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md) — the
+   single canonical design doc (strategies, agents, schema, methodology).
+2. [`docs/release-notes/v1.4.1.md`](./docs/release-notes/v1.4.1.md) — most
+   recent findings.
+3. [`AGENTS.md`](./AGENTS.md) — folder-by-folder map for AI coding agents
+   reading the codebase.
+4. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — add a model, agent, strategy,
+   or task class.
+5. [`SECURITY.md`](./SECURITY.md) — vulnerability-disclosure channel.
 
-Questions or reproducibility issues? File an issue: <https://github.com/RunanywhereAI/hybrid-coding-eval/issues>
+Questions or reproducibility issues? File an issue:
+<https://github.com/RunanywhereAI/hybrid-coding-eval/issues>

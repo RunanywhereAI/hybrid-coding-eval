@@ -29,7 +29,7 @@ runs/NN-*/
 ├── run.log              ← orchestrator stdout (pre-scoring)
 ├── env-manifest.json    ← hardware + software snapshot at run time
 ├── aggregate.json       ← per-cell medians/means (regenerable via analysis.all)
-├── arqgc.json           ← Bounded-ARQGC per (category, route) (regenerable)
+├── bootstrap_cis.json   ← per-cell 95% bootstrap CIs (regenerable)
 ├── decision_matrix.md   ← category × route → recommendation (regenerable)
 ├── charts/              ← Pareto, heatmaps, per-category (regenerable)
 ├── judge.jsonl          ← LLM-judge pairings (for category C runs only)
@@ -41,7 +41,7 @@ runs/NN-*/
 **Which files are data, and which are derived:**
 
 - `raw.jsonl`, `outputs/`, `judge.jsonl`, `env-manifest.json`, `progress.log` → SOURCE DATA. Cannot be regenerated.
-- `aggregate.json`, `arqgc.json`, `decision_matrix.md`, `charts/*.png` → DERIVED. Regenerate any time via `python -m analysis.all results/runs/NN-*/`.
+- `aggregate.json`, `bootstrap_cis.json`, `decision_matrix.md`, `charts/*.png` → DERIVED. Regenerate any time via `./bench analyze results/runs/NN-*/`.
 
 ## How runs relate to the merged dataset
 

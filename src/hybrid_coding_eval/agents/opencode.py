@@ -92,8 +92,8 @@ def _score_in_sandbox(scratch: Path) -> Quality:
     """Score the agent's scratch dir.
 
     Preferred path: run pytest inside the ``hybrid-eval-python:latest``
-    Docker sandbox (``--network none``, memory caps, pid cap) — same
-    boundary R1/R2/R3 use via ``scorers.functional_python``.
+    Docker sandbox (``--network none``, memory caps, pid cap) — the same
+    boundary every agent uses via ``scorers.functional_python``.
 
     Fallback path: if Docker is unavailable AND test files are present,
     run pytest on the host. Trade-off: loses the sandboxing security
@@ -267,7 +267,7 @@ def run(
     wall_ms = int((time.perf_counter() - t0) * 1000)
     finished_at = datetime.now(timezone.utc)
 
-    # Score via the existing Docker sandbox (same boundary R1-R5 use).
+    # Score via the existing Docker sandbox (same boundary every agent uses).
     quality = _score_in_sandbox(scratch)
 
     answer_path = run_dir / "answer.txt"

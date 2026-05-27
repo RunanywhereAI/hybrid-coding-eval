@@ -1,17 +1,19 @@
-"""Per-agent runners for the v1.4 agent-only sweep.
+"""Per-agent runners for the v1.4 agent-loop sweep.
 
-The kept runners wrap external coding-agent processes and let them
-drive multi-turn tool use; this repo only owns the routing of each LLM
-call (per-strategy):
+Each module wraps one external coding agent and lets it drive its own
+multi-turn tool use. This repo only owns the routing of each LLM call
+(per-strategy) — the agent decides what to ask for, the router decides
+where to ask.
 
-* :mod:`r6_mini_swe_agent` — mini-swe-agent on SWE-bench-style patches.
-* :mod:`r7_aider` — Aider on small refactors / scripts.
-* :mod:`r8_opencode` — opencode (TUI agent) on free-form tasks.
+* :mod:`hybrid_coding_eval.agents.mini_swe` — mini-swe-agent (Princeton),
+  SWE-bench-style patches.
+* :mod:`hybrid_coding_eval.agents.aider` — Aider, architect/editor protocol
+  on small refactors and scripts.
+* :mod:`hybrid_coding_eval.agents.opencode` — opencode TUI agent, free-form
+  tool use.
+* :mod:`hybrid_coding_eval.agents.cline` — Cline VSCode agent (headless).
 
-Agents B and C add :mod:`r9_claude_code` (Claude Code) and
-:mod:`r10_cline` (Cline) in parallel during the v1.4 cleanup.
-
-Each runner exposes a ``run(task, ...) -> ResultRow`` function and a
-small ``__main__`` CLI for ad-hoc runs. The orchestrator in
+Each runner exposes a ``run(task, ...) -> ResultRow`` function and a small
+``__main__`` CLI for ad-hoc calls. The orchestrator in
 :mod:`hybrid_coding_eval.core.experiment` ties them together.
 """

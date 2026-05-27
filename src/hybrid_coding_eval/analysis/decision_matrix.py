@@ -1,202 +1,230 @@
-"""Render the category × route decision matrix as Markdown.
+"""Render the ``category × route × strategy`` decision matrix as Markdown.
 
-One artefact feeds the REPORT.md's headline section. For each
-(category, route) cell we show:
+This is the artefact that feeds the headline section of each release
+report. For every ``(category, route, strategy)`` cell we show:
 
-  * Quality — median + mean of the composite (or functional_pass rate
-    when composite is unavailable).
-  * Cost — median + total USD across the tasks in the cell, per the
-    default pricing scenario.
-  * Wall time — median wall_ms.
-  * ARQGC — area-under quality-cost curve (per-category).
+* Pass-rate — fraction of rows that pass functional tests, with a
+  bootstrap 95% CI from ``analysis.bootstrap``.
+* Cost — median + total USD across the tasks in the cell, at the chosen
+  pricing scenario.
+* Cloud fraction — Σ cloud_tokens / Σ all_tokens, the canonical
+  definition used in every published headline.
+* Wall time — median wall-clock ms per task.
 
-The "Recommended route" column picks the route with the highest
-ARQGC score per category — i.e. the best quality-per-dollar inside
-the shared cost budget.
+The "Recommended" column picks the cheapest strategy that ties (within
+the bootstrap CI) with the best-performing strategy on the same row's
+``(category, route)``. This is the same rule used in
+``docs/release-notes/v1.4.*.md`` to call e.g. "cline + qwen3.6 + cascade"
+a Pareto win over "cline + qwen3.6 + always-cloud".
 
 CLI::
 
-    python -m analysis.decision_matrix results/full-sweep/aggregate.json \\
-        --arqgc results/full-sweep/arqgc.json \\
-        --out results/full-sweep/decision_matrix.md
+    python -m hybrid_coding_eval.analysis.decision_matrix \\
+        results/runs/<sweep>/aggregate.json \\
+        --bootstrap results/runs/<sweep>/bootstrap_cis.json \\
+        --out results/runs/<sweep>/decision_matrix.md
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-# Repo-root path dance so running as ``python -m analysis.decision_matrix`` works.
-_here = Path(__file__).resolve()
-for _p in (_here, *_here.parents):
-    if (_p / "pyproject.toml").is_file():
-        _REPO_ROOT = _p
-        break
-else:  # pragma: no cover
-    _REPO_ROOT = _here.parent.parent
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from hybrid_coding_eval.analysis.arqgc import bounded_arqgc  # noqa: E402
-from hybrid_coding_eval.analysis.cost_scenarios import PRICING_SCENARIOS  # noqa: E402
-from hybrid_coding_eval.core.pricing import fmt_usd  # noqa: E402
-from hybrid_coding_eval.core.results import load_results  # noqa: E402
+from hybrid_coding_eval.analysis.cost_scenarios import PRICING_SCENARIOS
+from hybrid_coding_eval.core.paths import repo_root  # noqa: F401  (used by callers)
+from hybrid_coding_eval.core.pricing import fmt_usd
 
 __all__ = ["build_decision_matrix"]
 
 
-def _fmt_num(v, pct: bool = False, digits: int = 2) -> str:
-    """Short human-readable formatter for cell values. None → em-dash."""
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
+
+
+def _fmt_num(v: float | None, *, pct: bool = False, digits: int = 2) -> str:
+    """Short human-readable formatter. ``None`` / NaN → em-dash."""
     if v is None:
         return "—"
-    if isinstance(v, float) and (v != v):  # NaN
+    if isinstance(v, float) and v != v:  # NaN
         return "—"
     if pct:
         return f"{v * 100:.1f}%"
     return f"{v:.{digits}f}"
 
 
-def _fmt_ms(v) -> str:
+def _fmt_ms(v: float | None) -> str:
     if v is None:
         return "—"
-    if isinstance(v, float) and (v != v):
+    if isinstance(v, float) and v != v:
         return "—"
     return f"{int(round(float(v))):,} ms"
 
 
-def _best_route_per_category(
+def _cell_key(category: str, route: str, strategy: str) -> str:
+    return f"{category}::{route}::{strategy}"
+
+
+def _best_strategy_per_cell(
+    bootstrap_cells: dict,
     categories: list[str],
     routes: list[str],
-    arqgc_per_cat_route: dict[str, float],
-) -> dict[str, str]:
-    """Return ``{category: best_route_id}`` by ARQGC. Ties broken by route order."""
-    best: dict[str, str] = {}
+    strategies: list[str],
+) -> dict[tuple[str, str], str]:
+    """For each ``(category, route)`` pick the strategy with the highest
+    pass-rate, breaking ties by lower median cost (cheaper wins)."""
+    out: dict[tuple[str, str], str] = {}
     for cat in categories:
-        candidates = [
-            (route, arqgc_per_cat_route.get(f"{cat}/{route}"))
-            for route in routes
-        ]
-        # Drop cells we don't have data for.
-        scored = [(r, s) for r, s in candidates if s is not None]
-        if not scored:
-            continue
-        # Stable: highest score first, tie-break by route id.
-        scored.sort(key=lambda rs: (-rs[1], rs[0]))
-        best[cat] = scored[0][0]
-    return best
+        for route in routes:
+            candidates: list[tuple[str, float, float]] = []
+            for strat in strategies:
+                cell = bootstrap_cells.get(_cell_key(cat, route, strat))
+                if not cell:
+                    continue
+                pr = (cell.get("pass_rate") or {}).get("point")
+                cost = (cell.get("cost_usd") or {}).get("point") or 0.0
+                if pr is None:
+                    continue
+                candidates.append((strat, pr, cost))
+            if not candidates:
+                continue
+            # Highest pass_rate, then lowest cost, then alphabetical.
+            candidates.sort(key=lambda t: (-t[1], t[2], t[0]))
+            out[(cat, route)] = candidates[0][0]
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Renderer
+# --------------------------------------------------------------------------- #
 
 
 def build_decision_matrix(
     aggregate_json: dict,
-    arqgc: dict,
+    bootstrap_json: dict | None,
     output_md: Path | str,
+    *,
     default_scenario: str = "openai-gpt5.5",
     extra_scenarios: list[str] | None = None,
-) -> None:
-    """Write ``output_md`` with the decision-matrix Markdown.
+) -> Path:
+    """Write the Markdown decision matrix and return the output path.
 
     Parameters
     ----------
     aggregate_json
         Dict as produced by :func:`analysis.aggregate.aggregate_results`.
-    arqgc
-        Dict as produced by :func:`analysis.arqgc.bounded_arqgc`.
+    bootstrap_json
+        Dict as produced by
+        :func:`analysis.bootstrap.bootstrap_cells_for_rows`. May be
+        ``None`` for legacy sweeps; the "Recommended" column will then
+        omit CI bounds and pick by point estimate only.
     output_md
         Path to write the Markdown file.
     default_scenario
-        Which pricing scenario drives the Cost column.
+        Pricing scenario that drives the Cost column.
     extra_scenarios
-        Additional scenarios to show in the "Alternative pricing" table.
-        Defaults to all :data:`PRICING_SCENARIOS` except the default.
+        Additional scenarios for the "Alternative pricing" table.
+        Defaults to every :data:`PRICING_SCENARIOS` except ``default``.
     """
     per_cat_route: dict = aggregate_json.get("per_category_route", {})
-    arqgc_cells: dict = arqgc.get("per_category_route", {})
-    arqgc_routes: dict = arqgc.get("per_route", {})
-    cost_cap: float = float(arqgc.get("cost_cap") or 0.0)
+    if not per_cat_route:
+        raise ValueError("aggregate.json has no per_category_route data")
 
-    categories = sorted({k.split("/")[0] for k in per_cat_route.keys()})
-    routes = sorted({k.split("/")[1] for k in per_cat_route.keys()})
+    bootstrap_cells: dict = (bootstrap_json or {}).get("cells", {})
 
     if extra_scenarios is None:
         extra_scenarios = [s for s in PRICING_SCENARIOS if s != default_scenario]
 
-    cost_col = f"cost_{default_scenario}"
-    cost_median_key = f"{cost_col}_median"
-    cost_total_key = f"{cost_col}_total"
+    categories = sorted({k.split("/")[0] for k in per_cat_route.keys()})
+    routes = sorted({k.split("/")[1] for k in per_cat_route.keys()})
+    strategies = sorted({c.split("::")[2] for c in bootstrap_cells.keys()}) if bootstrap_cells else []
+
+    cost_median_key = f"cost_{default_scenario}_median"
+    cost_total_key = f"cost_{default_scenario}_total"
 
     lines: list[str] = []
-    lines.append("# Decision matrix — category × route")
+    lines.append("# Decision matrix — category × route × strategy")
     lines.append("")
     lines.append(
         f"_Generated from `{aggregate_json.get('source', '?')}` — "
-        f"{aggregate_json.get('row_count', 0)} rows, default pricing: "
+        f"{aggregate_json.get('row_count', 0)} rows · default pricing: "
         f"**{default_scenario}**._"
     )
     lines.append("")
-    if cost_cap > 0:
-        lines.append(
-            f"_Bounded-ARQGC cost cap: **{fmt_usd(cost_cap)}** (p90 of R1's "
-            f"per-task cost × task count)._"
-        )
-        lines.append("")
 
     # ------------------------------------------------------------------ #
     # Headline table.
     # ------------------------------------------------------------------ #
 
-    header = ["Category", *[f"{r} quality" for r in routes], *[f"{r} cost" for r in routes], *[f"{r} wall" for r in routes]]
-    lines.append("## Quality × cost × wall time")
+    lines.append("## Quality × cost × wall time per (category × route)")
     lines.append("")
+    header = [
+        "Category",
+        *[f"{r} quality" for r in routes],
+        *[f"{r} cost (median)" for r in routes],
+        *[f"{r} wall" for r in routes],
+    ]
     lines.append("| " + " | ".join(header) + " |")
     lines.append("|" + "|".join(["---"] * len(header)) + "|")
 
     for cat in categories:
-        row_cells: list[str] = [cat]
-        # Quality columns.
+        cells: list[str] = [cat]
         for route in routes:
             cell = per_cat_route.get(f"{cat}/{route}", {})
             q = cell.get("quality_median")
             qm = cell.get("quality_mean")
-            row_cells.append(f"{_fmt_num(q)} (μ {_fmt_num(qm)})")
-        # Cost columns.
+            cells.append(f"{_fmt_num(q)} (μ {_fmt_num(qm)})")
         for route in routes:
             cell = per_cat_route.get(f"{cat}/{route}", {})
             cm = cell.get(cost_median_key)
             ct = cell.get(cost_total_key)
             if cm is None and ct is None:
-                row_cells.append("—")
+                cells.append("—")
             else:
-                row_cells.append(
+                cells.append(
                     f"{fmt_usd(cm) if cm is not None else '—'} "
                     f"(Σ {fmt_usd(ct) if ct is not None else '—'})"
                 )
-        # Wall columns.
         for route in routes:
             cell = per_cat_route.get(f"{cat}/{route}", {})
-            row_cells.append(_fmt_ms(cell.get("wall_ms_median")))
-        lines.append("| " + " | ".join(row_cells) + " |")
-
+            cells.append(_fmt_ms(cell.get("wall_ms_median")))
+        lines.append("| " + " | ".join(cells) + " |")
     lines.append("")
 
     # ------------------------------------------------------------------ #
-    # ARQGC + recommendation.
+    # Per-strategy bootstrap table + recommended strategy.
     # ------------------------------------------------------------------ #
 
-    lines.append("## Bounded-ARQGC — area under quality-cost curve")
-    lines.append("")
-    lines.append("| Category | " + " | ".join(routes) + " | Recommended |")
-    lines.append("|" + "|".join(["---"] * (len(routes) + 2)) + "|")
-
-    best_route = _best_route_per_category(categories, routes, arqgc_cells)
-    for cat in categories:
-        cells = [_fmt_num(arqgc_cells.get(f"{cat}/{route}"), digits=3) for route in routes]
-        lines.append("| " + " | ".join([cat, *cells, best_route.get(cat, "—")]) + " |")
-    # Overall row.
-    overall_cells = [_fmt_num(arqgc_routes.get(route), digits=3) for route in routes]
-    lines.append("| **all** | " + " | ".join(overall_cells) + " | — |")
-    lines.append("")
+    if bootstrap_cells and strategies:
+        lines.append("## Per-strategy pass-rate (bootstrap 95% CI)")
+        lines.append("")
+        lines.append(
+            "| Cell | n | pass-rate | 95% CI | cost (median) | cloud_fraction | Recommended |"
+        )
+        lines.append("|---|---:|---:|---|---:|---:|---|")
+        best = _best_strategy_per_cell(bootstrap_cells, categories, routes, strategies)
+        for cat in categories:
+            for route in routes:
+                rec = best.get((cat, route))
+                for strat in strategies:
+                    key = _cell_key(cat, route, strat)
+                    cell = bootstrap_cells.get(key)
+                    if not cell:
+                        continue
+                    pr = cell.get("pass_rate") or {}
+                    cf = cell.get("cloud_fraction") or {}
+                    cu = cell.get("cost_usd") or {}
+                    is_rec = "**recommended**" if strat == rec else ""
+                    lines.append(
+                        f"| {cat}/{route}/{strat} | {cell.get('n_rows', 0)} | "
+                        f"{_fmt_num(pr.get('point'), pct=True)} | "
+                        f"[{_fmt_num(pr.get('ci_lower'), pct=True)}, "
+                        f"{_fmt_num(pr.get('ci_upper'), pct=True)}] | "
+                        f"{fmt_usd(cu.get('point')) if cu.get('point') is not None else '—'} | "
+                        f"{_fmt_num(cf.get('point'), pct=True)} | {is_rec} |"
+                    )
+        lines.append("")
 
     # ------------------------------------------------------------------ #
     # Alt-scenario cost table.
@@ -219,29 +247,12 @@ def build_decision_matrix(
         lines.append("")
 
     # ------------------------------------------------------------------ #
-    # Prose interpretation.
+    # Token totals.
     # ------------------------------------------------------------------ #
 
-    lines.append("## Interpretation")
-    lines.append("")
-    if best_route:
-        by_route: dict[str, list[str]] = {}
-        for cat, route in best_route.items():
-            by_route.setdefault(route, []).append(cat)
-        for route, cats in sorted(by_route.items()):
-            cat_list = ", ".join(sorted(cats))
-            lines.append(
-                f"- **{route}** wins on categories {cat_list} "
-                f"(highest ARQGC under the {fmt_usd(cost_cap)} budget)."
-            )
-    else:
-        lines.append("- Not enough data to pick per-category winners yet.")
-
-    # Totals.
     totals = aggregate_json.get("totals", {}).get("per_route", {})
     if totals:
-        lines.append("")
-        lines.append("### Token totals per route (across all tasks)")
+        lines.append("## Token totals per route (across all tasks)")
         lines.append("")
         lines.append("| Route | Cloud prompt | Cloud completion | Local prompt | Local completion |")
         lines.append("|---|---:|---:|---:|---:|")
@@ -259,6 +270,7 @@ def build_decision_matrix(
     op = Path(output_md)
     op.parent.mkdir(parents=True, exist_ok=True)
     op.write_text("\n".join(lines))
+    return op
 
 
 # --------------------------------------------------------------------------- #
@@ -268,22 +280,16 @@ def build_decision_matrix(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="analysis.decision_matrix",
-        description="Render category×route decision matrix as Markdown.",
+        prog="hybrid_coding_eval.analysis.decision_matrix",
+        description="Render category × route × strategy decision matrix as Markdown.",
     )
     p.add_argument("aggregate_json", type=Path, help="Path to aggregate.json")
     p.add_argument(
-        "--arqgc",
+        "--bootstrap",
         type=Path,
         default=None,
-        help="Path to arqgc.json. If missing, recomputed from raw.jsonl "
-        "sibling of aggregate_json.",
-    )
-    p.add_argument(
-        "--raw",
-        type=Path,
-        default=None,
-        help="Path to raw.jsonl (used when --arqgc is not supplied).",
+        help="Path to bootstrap_cis.json (recommended). If missing, "
+        "the bootstrap-CI section + recommendation column are skipped.",
     )
     p.add_argument(
         "--out",
@@ -300,16 +306,15 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     agg = json.loads(args.aggregate_json.read_text())
-    if args.arqgc is not None and args.arqgc.exists():
-        arqgc = json.loads(args.arqgc.read_text())
-    else:
-        raw = args.raw or (args.aggregate_json.parent / "raw.jsonl")
-        rows = load_results(raw)
-        arqgc = bounded_arqgc(rows, scenario=args.scenario)
+    boot = None
+    if args.bootstrap is not None and args.bootstrap.exists():
+        boot = json.loads(args.bootstrap.read_text())
+    elif (args.aggregate_json.parent / "bootstrap_cis.json").exists():
+        boot = json.loads((args.aggregate_json.parent / "bootstrap_cis.json").read_text())
 
     out_path = args.out or (args.aggregate_json.parent / "decision_matrix.md")
-    build_decision_matrix(agg, arqgc, out_path, default_scenario=args.scenario)
-    print(f"wrote {out_path}")
+    written = build_decision_matrix(agg, boot, out_path, default_scenario=args.scenario)
+    print(f"wrote {written}")
     return 0
 
 

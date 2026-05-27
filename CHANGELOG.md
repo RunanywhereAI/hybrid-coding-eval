@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.4.2] — 2026-05-26
+
+**OSS readiness cleanup.** Code, docs, and reproducibility cleanup pass — no new benchmark data. The full release notes live at [`docs/release-notes/v1.4.2.md`](./docs/release-notes/v1.4.2.md).
+
+### Added
+
+- **`scripts/reproduce.sh`** — one-command reproducer that checks every prerequisite, sets up the venv, runs `./bench setup`, and either runs the smoke sweep (`--smoke`) or forwards arbitrary `./bench sweep` arguments. ~30 s end-to-end for the smoke pass.
+- **`docs/HYBRID_ROUTING_DESIGN.md`** — single canonical design doc consolidating the eight previously-separate `docs/*.md` files (routing strategies, agents, methodology, schema, add-a-model recipe).
+- **`SECURITY.md`** — vulnerability-disclosure channel (private email).
+- **`bench analyze` walks subdirectories.** Point it at a sweep root and it analyses every `<strategy>/seed-<seed>/raw.jsonl` it finds.
+- **`bench setup` fails fast** (10 s timeout) when the Docker daemon is down, instead of hanging on the `docker image inspect` call.
+
+### Changed
+
+- **`README.md`, `AGENTS.md`, `CONTRIBUTING.md`** rewritten for v1.4.2 reality — TL;DR results table, repo layout, contribution recipes that point at the four-agent surface.
+- **`LICENSE`, `LICENSE-DATA`, `LICENSE.md`, `NOTICE.md`** rewritten — every referenced path now actually exists (no more dangling `runners/`, `EXTERNAL/`, `vendor/minions/`, `vendor/lm-eval-harness-judge/`, `bin/`, `benchmark/`, `lib/`).
+- **`pyproject.toml`** — version bumped to `1.4.2`; `ruff.extend-exclude` repointed to the v1.4 fixture roots under `tasks/`.
+- **`requirements.txt`** synced with `pyproject.toml [project.dependencies]`, grouped Core / Viz / Optional.
+- **`.env.example`** — dropped deleted-in-v1.4 `llm_judge` reference; added v1.4.1 `ROUTER_LOCAL_*` guards.
+- **`CODE_OF_CONDUCT.md`** — private email reporting channel.
+
+### Fixed
+
+- **`analysis/bootstrap.py` cost CI** now reads from `configs/pricing/pricing_tables.json` instead of an empty per-row `cost_usd` field. (Pre-v1.4.2 analyses showed silently-zero cost CIs for some cells.)
+- **`analysis/bootstrap.py` `cloud_fraction`** is token-based, not call-count-based — the canonical definition now applies everywhere (router, analysis, release notes).
+- **`analysis/bootstrap.py` `stratify_by`** parameter now respected (was silently ignored).
+- **`core/experiment.score_row`** accepts both `refactors` and the legacy `real_dev` source name — silent skip bug.
+- **`core/experiment.run_pair`** stamps `seed` onto the `ResultRow` via the new `--seed` flag.
+- **`cli/bench._cmd_sweep`** forwards `CLOUD_MODEL` from the config to the spawned router proxy.
+- **`agents/aider.py` `_run_tests_local`** parses `pytest`'s summary line via regex — `tests_passed` / `tests_total` are now correct (was always 0/1 or 1/1).
+- **`cli/env_detect.py`** uses `core.paths.repo_root` for path resolution (single source of truth).
+- **`docs/release-notes/v1.4.1.md`** — corrected `cline + qwen3.6 + heuristic + refactors` headline from `22/24 = 92%` to `23/24 = 96%` (the prior figure was a transcription error from the raw data).
+- **`CHANGELOG.md`** — restored missing `[1.4.1]` reference link; `[Unreleased]` compares against `v1.4.1` instead of `v1.3.0`.
+
+### Removed
+
+- **`analysis/arqgc.py` + `analysis/decision_matrix_v2.py`** — unused. The v1.4 decision matrix ranks cells by pass-rate then median cost; no ARQGC anywhere in the pipeline.
+- **`agents/claude_code.py`** — deferred to v1.5. v1.4.2 surfaces four agents: `aider`, `opencode`, `mini-swe-agent`, `cline`.
+- **`docs/REPRODUCING.md`, `docs/ARCHITECTURE.md`, `docs/METHODOLOGY.md`, `docs/ROUTING_STRATEGIES.md`, `docs/AGENTIC_ROUTES.md`, `docs/HYBRID_ROUTER_DESIGN.md`, `docs/PRIOR_ART.md`, `docs/BENCHMARK_NEW_MODEL.md`** — consolidated into `docs/HYBRID_ROUTING_DESIGN.md`.
+- **`docs/audits/`** — moved to gitignored `personal/audits/` (internal review artefacts, not OSS surface).
+- **`examples/`** — stale; instructions live in `README.md` + `docs/HYBRID_ROUTING_DESIGN.md` now.
+- **Stale `EXTERNAL/minions/` / `vendor/minions/` entries** removed from `.gitignore`.
+- **Two `personal/raw-runs/v4*.yaml`** files untracked (were committed despite the `personal/` gitignore).
+
 ## [1.4.1] — 2026-05-25
 
 **3-model agentic leaderboard.** v1.4.1 adds 936 rows across two new canonical sweeps (qwen3-coder:30b + qwen3.6:35b) — completing the 3-model leaderboard envisioned in the original v1.4 plan. Combined v1.4 + v1.4.1: **1,644 rows** of agentic-only data across 3 local models × 3 agents × 4-8 strategies × 13 tasks × 3 seeds.
@@ -61,14 +105,12 @@ v1.4.1 sweeps spent ~$50 incremental cloud (gpt-5.5 list pricing). Total v1.4 li
 - **`bench sweep` auto-spawns the router proxy** — reads `models.local` from the config, spawns `node router/server.mjs` with `LOCAL_MODEL=<model>`, waits for `/healthz`, runs the sweep, tears the router down on completion. Eliminates the manual `(cd router && ./start.sh) &` step from the reproducer.
 - **`--external-router` flag** on `bench sweep` — opt-out for users who want to manage the router proxy themselves.
 - **`docs/release-notes/v1.4.0.md`** — tracked-in-git release notes for v1.4.0 (replaces the GH-release-only `findings.md` from v1.0–v1.3).
-- **"How to read the results" section** in `docs/REPRODUCING.md` — maps each headline number to its exact `bootstrap_cis.json` cell key with `jq` examples.
+- **"How to read the results" cell→headline map** — maps each headline number to its exact `bootstrap_cis.json` cell key with `jq` examples.
 - **`pydantic` and `pyyaml`** in `requirements.txt` (were pyproject-only — broke fresh `pip install -r requirements.txt` installs).
 
 ### Changed
 
 - **README rewritten for v1.4** — v1.4 hero, 4-command quickstart, 5 agentic routes, 8 strategies, 3 local models, CI badge, v1.3.0 carry-over preview headline.
-- **`docs/REPRODUCING.md`** — v1.4 reproducer, expanded troubleshooting, cell→headline-number map.
-- **`docs/BENCHMARK_NEW_MODEL.md`** — v1.4 add-a-model guide (18 tasks, 5 agents, 8 strategies, gemma4 baseline).
 - **`AGENTS.md`** — reflects post-cleanup `agents/` directory + auto-spawn-router workflow.
 - **`pyproject.toml`** — version bumped to 1.4.0.
 - **Task class names**: `X` → `puzzles` (Exercism Python) and `D` → `refactors` (real-developer D-tasks). The v1.4 task classes are surfaced in `bootstrap_cis.json` cell keys and headline tables.
@@ -95,7 +137,9 @@ The v1.0.0 → v1.3.0 release lineage is preserved on the [GitHub releases page]
 - **v1.0.0 (2026-05-18)** — First public OSS release. R1–R5 non-agentic surface, 250-row v3 publication sweep, `./bench setup`. (See GH release `v1.0.0`.)
 - **Pre-1.0 (v0.x → v3.x)** — Internal research iterations. The v3.3 sweep (3,581 rows, 33 variants, 6 local models) is the canonical pre-1.0 corpus under `results/runs/`. The 250-row v3 sweep at `results/runs/07-v3-devstral-all-routes/` is preserved bit-identically.
 
-[Unreleased]: https://github.com/RunanywhereAI/hybrid-coding-eval/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/RunanywhereAI/hybrid-coding-eval/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.2
+[1.4.1]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.1
 [1.4.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.0
 [1.3.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.3.0
 [1.2.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.2.0

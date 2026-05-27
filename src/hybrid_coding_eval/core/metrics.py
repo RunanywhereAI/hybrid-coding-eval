@@ -1,17 +1,15 @@
 """Dataclasses that define the canonical result-row shape.
 
-These are the tokens-first metrics the eval harness writes to
-``results/*.jsonl`` — one ``ResultRow`` per (task × route × seed) run.
+One :class:`ResultRow` per ``(task, route, seed)`` pair is written to
+``results/runs/<sweep>/raw.jsonl``. Three principles:
 
-See ``PLAN.md`` §7 "result schema" for the rationale. The three guiding
-principles:
-
-  1. Tokens are always captured (prompt / completion / cached / reasoning,
-     split by local vs cloud) — cost is derived later via ``lib.pricing``,
-     never persisted.
-  2. Latency is wall-clock + per-call so we can re-aggregate differently.
-  3. Quality fields are all ``Optional`` because not every scorer applies to
-     every task (functional-pass vs LLM-judge vs composite).
+1. **Tokens are always captured** (``prompt`` / ``completion`` / ``cached`` /
+   ``reasoning``, split by local vs cloud). Cost is derived later via
+   :mod:`hybrid_coding_eval.core.pricing`; cost is never persisted.
+2. **Latency** captures both wall-clock and per-call so downstream analysis
+   can re-aggregate differently.
+3. **Quality fields are optional** — not every scorer applies to every task
+   (functional-pass for puzzles, multi-criterion for refactors).
 """
 
 from __future__ import annotations
@@ -22,6 +20,13 @@ from typing import Any
 
 @dataclass
 class TokenUsage:
+    """Token totals for one row, split between local and cloud backends.
+
+    Invariants enforced downstream:
+    * ``prompt == local_prompt + cloud_prompt``
+    * ``completion == local_completion + cloud_completion``
+    """
+
     prompt: int = 0
     completion: int = 0
     cached: int = 0
@@ -43,7 +48,7 @@ class Quality:
     functional_pass: bool | None = None
     tests_passed: int | None = None
     tests_total: int | None = None
-    judge_win_rate: float | None = None
+    judge_win_rate: float | None = None  # reserved for future LLM-judge sweeps
     composite: float | None = None
 
 
@@ -57,52 +62,64 @@ class Routing:
 
 @dataclass
 class ResultRow:
+    """One run of one ``(task, agent, strategy, seed)`` cell.
+
+    Field reference (v1.4 schema):
+
+    ``task_id``
+        Task adapter id, e.g. ``"exercism-python/grep"`` or
+        ``"real-dev/d4-review-pagination"``.
+    ``category``
+        v1.4 task class: ``"puzzles"``, ``"refactors"``, or ``"real-prs"``.
+        Older sweeps may use the legacy letters (``"A"``, ``"D"``, ``"X"``);
+        analysis code translates on read.
+    ``route``
+        Agent name: ``"aider"``, ``"opencode"``, ``"mini-swe-agent"``, or
+        ``"cline"``. Older sweeps may use the legacy ``R6/R7/R8/R10`` ids.
+    ``router_strategy``
+        Which routing strategy was active: ``"always-cloud"``,
+        ``"always-local"``, ``"heuristic"``, ``"cascade"``, etc.
+    ``seed``
+        Deterministic seed used for this row. Populated by the
+        orchestrator for every v1.4+ sweep. Older sweeps may have ``None``.
+    """
+
     task_id: str
-    category: str  # 'A' | 'B' | 'C'
-    route: str  # 'R1' | 'R2' | 'R3' | 'R4' | 'R5'
+    category: str
+    route: str
     hardware_profile_ref: str
     tokens: TokenUsage
     latency: Latency
     quality: Quality
     routing: Routing
     output_ref: str
-    # Optional metadata.
     started_at: str | None = None
     finished_at: str | None = None
-    # Populated when a runner fails (proxy 5xx, timeout, bad JSON). When set,
-    # callers should treat the row as a *skipped* run — tokens are zero, quality
-    # is all-None, and the failure string explains why. This was added as a
-    # minimal cross-cutting change so runners can report errors structurally
-    # without crashing the orchestrator. Default None preserves backward-compat
-    # for rows written before this field existed.
+    # When set, callers should treat the row as a *skipped* run — tokens are
+    # zero, quality is all-None, the string explains why. Default None
+    # preserves backward-compat with pre-error-field rows.
     error: str | None = None
-    # Variant tag — populated from ``BenchConfig.variant_tag``. Rows from the
-    # MVP sweeps (v1-qwen, v2-qwen-fixed, v2-devstral, r4-minion) set this
-    # directly; post-T-07 rows inherit it from the loaded config. Optional
-    # for backward compat with rows written before the field existed.
     variant: str | None = None
-    # Model provenance for the row. None on historical rows (the info was
-    # previously encoded only in ``routing.per_call_backends``); required on
-    # all new sweeps. Populated by runners from the resolved BenchConfig.
+    # Model provenance for the row. None on historical rows; required on
+    # all new sweeps. Populated from the resolved BenchConfig.
     cloud_model_id: str | None = None
     local_model_id: str | None = None
-    judge_model_id: str | None = None
     router_classifier_model_id: str | None = None
     router_strategy: str | None = None
     seed: int | None = None
-    # SHA256 of the canonical JSON dump of the BenchConfig. Pairs every row
-    # uniquely with the config that produced it.
+    # SHA256 of the canonical JSON dump of the BenchConfig that produced
+    # the row. Pairs every row uniquely with its config.
     config_sha: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Flatten for JSONL serialization. Uses ``dataclasses.asdict`` which
-        recurses through the nested dataclasses."""
+        """Flatten for JSONL serialization (recurses into nested dataclasses)."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "ResultRow":
-        """Inverse of :meth:`to_dict`. Strict on required fields; unknown keys
-        are ignored (forward-compatible)."""
+        """Inverse of :meth:`to_dict`. Unknown keys are silently dropped
+        (forward-compatible across schema versions)."""
+
         def _pick(sub_cls, payload):
             names = {f.name for f in fields(sub_cls)}
             return sub_cls(**{k: v for k, v in (payload or {}).items() if k in names})

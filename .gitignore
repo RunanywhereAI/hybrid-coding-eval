@@ -28,10 +28,6 @@ results/runs/*
 !results/runs/README.md
 
 # --- vendored reference clones (treated as read-only vendored deps) ---
-# Pre-reorg path kept for branches still on the old layout.
-EXTERNAL/minions/
-EXTERNAL/*/.git/
-vendor/minions/
 vendor/opencode/
 vendor/*/.git/
 

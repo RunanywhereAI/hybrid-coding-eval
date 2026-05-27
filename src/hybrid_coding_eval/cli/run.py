@@ -122,18 +122,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument(
         "--task-classes",
         type=_csv,
-        default=["puzzles", "refactors", "real-prs"],
+        default=["puzzles", "refactors"],
         help=(
             "Comma-separated list of task classes (default: "
-            "puzzles,refactors,real-prs). v1.4 replaces the legacy "
-            "A/B/C category letters with explicit task-class names."
+            "puzzles,refactors). Add ``real-prs`` once Docker is set up "
+            "for SWE-bench Verified."
         ),
     )
     p.add_argument(
         "--agents",
         type=_csv,
         default=list(ROUTES),
-        help="Comma-separated list of route ids (default: R6,R7,R8,R9,R10).",
+        help=f"Comma-separated agent names. Default: {','.join(ROUTES)}.",
     )
     p.add_argument(
         "--tasks",
@@ -179,14 +179,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "heuristic",
             "llm-classifier",
             "embedding-knn",
-            "cascade","phase-aware",
+            "cascade",
+            "phase-aware",
         ],
         help=(
-            "Routing strategy R3 + R6/R7/R8 use at each step. v1.1+: "
-            "'heuristic' is now agent-aware (detects ReAct loops and "
-            "scores the latest delta); it falls through to the v1.0.0 "
-            "non-agent heuristic for plain chat. Sourced from "
-            "config.router.strategy when launched via ./bench."
+            "Routing strategy each agent's LLM calls go through. "
+            "Sourced from config.router.strategy when launched via "
+            "``./bench``. See docs/HYBRID_ROUTING_DESIGN.md for the "
+            "definition of each strategy."
         ),
     )
     p.add_argument(
@@ -195,6 +195,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Comma-separated explicit task-ID whitelist (e.g. real-dev/d1-rate-limit). "
              "When set, only these tasks are included in the plan.",
+    )
+    p.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=(
+            "Deterministic seed to stamp onto every row written this pass. "
+            "Used by analysis.bootstrap to compute multi-seed CIs."
+        ),
     )
     p.add_argument(
         "--dry-run",
@@ -327,6 +336,7 @@ def main(argv: list[str] | None = None) -> int:
                 raw_path=raw_path,
                 skip_scoring=args.skip_scoring,
                 router_strategy=args.router_strategy,
+                seed=args.seed,
             )
         except Exception as exc:  # noqa: BLE001 — keep the sweep alive
             had_infra_error = True

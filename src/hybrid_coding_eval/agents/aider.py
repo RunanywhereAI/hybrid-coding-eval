@@ -28,6 +28,7 @@ What R7 does, per task:
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -140,6 +141,37 @@ def _copy_fixture(task: Any, dst: Path) -> tuple[Path, list[Path]]:
     return test_path, editable
 
 
+_PYTEST_TAIL_RE = re.compile(
+    r"(?:(\d+)\s+passed)?(?:,\s*)?(?:(\d+)\s+failed)?(?:,\s*)?(?:(\d+)\s+error[s]?)?",
+    re.IGNORECASE,
+)
+
+
+def _parse_pytest_summary(stdout: str) -> tuple[int, int]:
+    """Parse the last ``N passed, M failed, K errors`` line emitted by pytest.
+
+    Returns ``(tests_passed, tests_total)``. ``(0, 0)`` if no summary line
+    is detected (caller decides the fallback).
+    """
+    # Pytest's summary always lives on the LAST non-empty line; walk
+    # back from the tail and stop at the first line that mentions ``passed``,
+    # ``failed``, or ``error``.
+    for line in reversed(stdout.splitlines()):
+        stripped = line.strip("= ").strip()
+        if not stripped:
+            continue
+        if "passed" not in stripped and "failed" not in stripped and "error" not in stripped:
+            continue
+        m = _PYTEST_TAIL_RE.search(stripped)
+        if not m:
+            return (0, 0)
+        passed = int(m.group(1) or 0)
+        failed = int(m.group(2) or 0)
+        errors = int(m.group(3) or 0)
+        return passed, passed + failed + errors
+    return (0, 0)
+
+
 def _run_tests_local(stub_dir: Path, test_path: Path) -> Quality:
     """Run pytest on the test file in the stub dir. Fast local subprocess
     (no Docker overhead for this lightweight case).
@@ -160,19 +192,14 @@ def _run_tests_local(stub_dir: Path, test_path: Path) -> Quality:
         )
         # pytest exit 0 = pass; 1 = test failures; >1 = setup error
         passed = proc.returncode == 0
-        # Try to parse the "<X passed>" / "<Y failed>" line for fine-grained
-        # counts; not strictly required.
-        tail = (proc.stdout or "")[-400:]
-        tests_passed = 0
-        tests_total = 0
-        for tok in tail.split():
-            if tok.endswith("passed,") or tok == "passed":
-                # crude — find preceding int
-                pass
+        tests_passed, tests_total = _parse_pytest_summary(proc.stdout or "")
+        if tests_total == 0:
+            tests_total = 1
+            tests_passed = 1 if passed else 0
         return Quality(
             functional_pass=passed,
-            tests_passed=tests_passed if tests_passed else (1 if passed else 0),
-            tests_total=tests_total if tests_total else 1,
+            tests_passed=tests_passed,
+            tests_total=tests_total,
             composite=1.0 if passed else 0.0,
         )
     except subprocess.TimeoutExpired:

@@ -7,7 +7,7 @@ Subcommands:
   → loops strategies × seeds in the foreground (canonical reproducer).
 - ``bench show-config configs/foo.yaml`` → prints merged config JSON.
 - ``bench env-detect [--out PATH]`` → writes an env-manifest.json.
-- ``bench analyze RESULTS_DIR`` → aggregate → ARQGC → charts.
+- ``bench analyze RESULTS_DIR`` → aggregate → bootstrap CIs → decision matrix → charts.
 - ``bench schema [--out configs/schema.json]`` → dump JSON Schema.
 - ``bench setup`` → one-shot install (aider + opencode + cline + …).
 
@@ -103,6 +103,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         argv.append("--resume")
     if config.scoring.skip:
         argv.append("--skip-scoring")
+    seed = getattr(args, "seed", None)
+    if seed is not None:
+        argv += ["--seed", str(seed)]
 
     # Task caps — ``run-experiment.py`` only takes a single ``--tasks N``
     # flag (cap applied uniformly across the selected categories). So we
@@ -156,7 +159,6 @@ def _print_plan(config: BenchConfig) -> None:
     print(f"config_sha       {config.canonical_sha256()[:12]}…")
     print(f"cloud_model      {config.models.cloud}")
     print(f"local_model      {config.models.local}")
-    print(f"judge_model      {config.models.judge}")
     print(f"router           strategy={config.router.strategy} port={config.router.port}")
     print(f"task_classes     {config.benchmark.task_classes}")
     print(f"agents           {config.benchmark.agents}")
@@ -199,9 +201,39 @@ def _cmd_env_detect(args: argparse.Namespace) -> int:
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
+    """Run the analysis pipeline on a results directory.
+
+    Behaviour:
+
+    * If ``args.results_dir`` directly contains a ``raw.jsonl``, analyse it.
+    * Otherwise walk one level of subdirectories and analyse each
+      ``raw.jsonl`` we find. This is what a sweep produces — one
+      ``<strategy>/seed-<seed>/raw.jsonl`` per pass.
+    """
     from hybrid_coding_eval.analysis.all import main as analyze_main
 
-    return int(analyze_main([str(args.results_dir)]) or 0)
+    root: Path = args.results_dir
+    if not root.exists():
+        print(f"error: results path not found: {root}", file=sys.stderr)
+        return 2
+
+    if (root / "raw.jsonl").is_file():
+        return int(analyze_main([str(root)]) or 0)
+
+    # Walk one level deep — accept any subdir that has its own raw.jsonl.
+    sub_raws = sorted(p.parent for p in root.glob("**/raw.jsonl") if p.is_file())
+    if not sub_raws:
+        print(f"error: no raw.jsonl under {root}", file=sys.stderr)
+        return 2
+
+    failed = 0
+    for d in sub_raws:
+        print(f"=== analysing {d} ===", file=sys.stderr)
+        rc = int(analyze_main([str(d)]) or 0)
+        if rc != 0:
+            failed += 1
+            print(f"  (rc={rc})", file=sys.stderr)
+    return 1 if failed else 0
 
 
 # ---------- subcommand: token-budget --------------------------------------
@@ -273,8 +305,8 @@ def _cmd_schema(args: argparse.Namespace) -> int:
 
 # ---------- setup ----------------------------------------------------------
 
-# Opencode (R8) fork install — env-overridable so iteration can pin a
-# specific SHA without code edits. See docs/AGENTIC_ROUTES.md.
+# Opencode fork install — env-overridable so iteration can pin a
+# specific SHA without code edits. See docs/HYBRID_ROUTING_DESIGN.md §3.
 import os as _os
 
 _OPENCODE_GIT_URL = _os.environ.get(
@@ -481,11 +513,18 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
     failures = []
 
     # 1. Docker image for functional scoring sandbox
-    print("[1/6] Functional-scoring Docker image (hybrid-eval-python:latest)")
+    print("[1/7] Functional-scoring Docker image (hybrid-eval-python:latest)")
     if not shutil.which("docker"):
         print("  ⚠ docker not on PATH — skipping image build")
         print("    Install Docker Desktop: https://www.docker.com/products/docker-desktop/")
     else:
+        # Fail fast if the daemon is down — building images and other
+        # docker subcommands will hang for many seconds before timing out.
+        try:
+            subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=10)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            print("  ⚠ docker daemon is not running — start Docker Desktop and re-run `./bench setup`.")
+            failures.append("Docker daemon not running")
         try:
             subprocess.run(
                 ["docker", "image", "inspect", "hybrid-eval-python:latest"],
@@ -507,7 +546,7 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
                 failures.append("Docker image build failed")
 
     # 2. Auxiliary Ollama models (router strategies)
-    print("\n[2/6] Auxiliary local models (router classifier + embedding)")
+    print("\n[2/7] Auxiliary local models (router classifier + embedding)")
     if not shutil.which("ollama"):
         print("  ⚠ ollama not on PATH — skipping model pulls")
         print("    Install Ollama: https://ollama.com/download")
@@ -530,10 +569,9 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
             except (FileNotFoundError, subprocess.CalledProcessError) as exc:
                 print(f"  ⚠ pull failed for {tag}: {exc}")
 
-    # 3. Aider (R7 route — the v1.2+ canonical agent for hybrid eval).
-    # Installed into the repo's venv so subprocess can find it via the
-    # R7 runner's .venv/bin/aider fallback. Independent of system PATH.
-    print("\n[3/6] Aider (R7 route)")
+    # 3. Aider agent. Installed into the repo's venv so the aider runner's
+    # ``.venv/bin/aider`` fallback picks it up without needing system PATH.
+    print("\n[3/7] aider agent")
     aider_bin = _REPO_ROOT / ".venv" / "bin" / "aider"
     if aider_bin.exists():
         print(f"  ✓ aider already installed at {aider_bin}")
@@ -551,11 +589,10 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
                 print(f"  ⚠ aider install failed: {exc}")
                 failures.append("aider install failed")
 
-    # 4b. mini-swe-agent (R6 route — the bash-only ReAct agent that is the
-    # SWE-bench Verified apples-to-apples reference). Installed into the
-    # repo's venv so the R6 runner's ``.venv/bin/mini-extra`` fallback
-    # picks it up without needing the system PATH to include venv/bin.
-    print("\n[3b/6] mini-swe-agent (R6 route — bash-only ReAct, SWE-bench reference)")
+    # 4. mini-swe-agent — bash-only ReAct, the SWE-bench Verified
+    # apples-to-apples reference. Installed into the repo's venv so the
+    # runner's ``.venv/bin/mini-extra`` fallback picks it up.
+    print("\n[4/7] mini-swe-agent")
     mini_extra_bin = _REPO_ROOT / ".venv" / "bin" / "mini-extra"
     if mini_extra_bin.exists():
         print(f"  ✓ mini-swe-agent already installed at {mini_extra_bin}")
@@ -576,14 +613,12 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
                 print(f"  ⚠ mini-swe-agent install failed: {exc}")
                 failures.append("mini-swe-agent install failed")
 
-    # 4. Opencode fork (R8 route — gemma4-only in v1.4; opt-in via env).
-    # v1.4.0 resurrected opencode + gemma4 + heuristic + refactors at 71%
-    # (vs v1.1.x's 0/15), but the resurrection is gemma4-specific —
-    # qwen3-coder/qwen3.6 stay at 21–33% (see release-notes/v1.4.1.md).
+    # 5. Opencode fork — opt-in via env because the fork clone is large
+    # and gemma4-specific (qwen variants do not benefit; see release notes).
     if _os.environ.get("BENCH_SETUP_OPENCODE", "0") in ("1", "true", "yes"):
-        print("\n[4/6] Opencode (R8 route — gemma4-only; enabled via BENCH_SETUP_OPENCODE=1)")
+        print("\n[5/7] opencode (opt-in via BENCH_SETUP_OPENCODE=1)")
         if not shutil.which("opencode"):
-            print("  ⚠ opencode CLI not on PATH — R8 route won't work")
+            print("  ⚠ opencode CLI not on PATH — the opencode agent won't work")
             print("    Install via Homebrew: brew install opencode")
         else:
             print("  ✓ opencode CLI on PATH")
@@ -592,22 +627,20 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
         if not _ensure_opencode_config(verbose=True):
             failures.append("opencode.json config setup failed")
     else:
-        print("\n[4/6] Opencode (R8 route) — SKIPPED (opt-in for gemma4 sweeps)")
-        print("  Resurrected on gemma4 in v1.4.0 (71% heuristic refactors); does not")
-        print("  transfer to qwen models. To enable for a gemma4 sweep:")
-        print("    BENCH_SETUP_OPENCODE=1 ./bench setup")
+        print("\n[5/7] opencode — SKIPPED (opt-in)")
+        print("  To enable: BENCH_SETUP_OPENCODE=1 ./bench setup")
 
-    # 5. Cline agent (R10 route — LiteLLM-compatible CLI, v1.4 canonical sweep).
-    # The npm package is installed globally so `cline` ends up on PATH; the
-    # providers.json points it at our router proxy on :8787.
-    print("\n[5/6] cline agent (LiteLLM-compatible CLI)")
+    # 6. cline agent — LiteLLM-compatible CLI. The npm package is installed
+    # globally so ``cline`` ends up on PATH; the providers.json points it at
+    # our router proxy on :8787.
+    print("\n[6/7] cline agent")
     if not _ensure_cline_install(verbose=True):
         failures.append("cline install failed")
     if not _ensure_cline_config(verbose=True):
         failures.append("cline providers.json setup failed")
 
-    # 6. Environment sanity (.env file, Python version)
-    print("\n[6/6] Environment sanity")
+    # 7. Environment sanity (.env file, Python version)
+    print("\n[7/7] Environment sanity")
     env_path = _REPO_ROOT / ".env"
     env_example = _REPO_ROOT / ".env.example"
     if env_path.exists():
@@ -632,10 +665,10 @@ def _cmd_setup(args: argparse.Namespace) -> int:  # noqa: ARG001
     else:
         print("  ✓ All checks passed.")
         print("\nNext:")
-    print("  1. Ensure .env has OPEN_AI_API_KEY (and ANTHROPIC_API_KEY for claude-code)")
-    print("  2. Pull a local model: `ollama pull gemma4:31b` (or qwen3-coder:30b / qwen3.6:35b)")
-    print("  3. Run the v1.4 smoke sweep: `./bench sweep --config configs/v1.4-smoke.yaml`")
-    print("     (the router proxy is auto-spawned from `models.local`)")
+    print("  1. Ensure .env has OPEN_AI_API_KEY (required to call gpt-5.5 through the router).")
+    print("  2. (Optional, only for hybrid/local sweeps) `ollama pull gemma4:31b` (or qwen3-coder:30b / qwen3.6:35b).")
+    print("  3. Run the smoke sweep:  `./scripts/reproduce.sh --smoke`  (or  `./bench sweep --config configs/v1.4-smoke.yaml`).")
+    print("     The router proxy is auto-spawned from `models.local`.")
     return 1 if failures else 0
 
 
@@ -1162,6 +1195,7 @@ def _router_for_model(
     local_model: str,
     port: int,
     *,
+    cloud_model: str | None = None,
     external: bool = False,
     extra_env: dict[str, str] | None = None,
 ) -> Iterator[None]:
@@ -1169,9 +1203,10 @@ def _router_for_model(
 
     If ``external`` is True OR a router is already healthy on the port,
     yields without spawning (caller-managed lifecycle). Otherwise spawns
-    ``node router/server.mjs`` with ``LOCAL_MODEL=<local_model>`` and any
-    ``extra_env`` (e.g. ``ROUTER_CASCADE_THRESHOLD``), waits for /healthz,
-    and tears down on exit.
+    ``node router/server.mjs`` with ``LOCAL_MODEL=<local_model>``,
+    ``CLOUD_MODEL=<cloud_model>``, and any ``extra_env`` (e.g.
+    ``ROUTER_CASCADE_THRESHOLD``), waits for ``/healthz``, and tears down
+    on exit.
 
     This is the shared lifecycle helper for ``bench sweep`` — both the
     regular path and the ``--cascade-thresholds`` path use it.
@@ -1197,6 +1232,8 @@ def _router_for_model(
         return
 
     env_overrides: dict[str, str] = {"LOCAL_MODEL": local_model}
+    if cloud_model:
+        env_overrides["CLOUD_MODEL"] = cloud_model
     if extra_env:
         env_overrides.update(extra_env)
     proc = _spawn_router(env_overrides, port=port)
@@ -1204,7 +1241,8 @@ def _router_for_model(
         yield
     finally:
         _kill_router(proc)
-        print(f"--- killed router (LOCAL_MODEL={local_model}) ---")
+        cloud_note = f", CLOUD_MODEL={cloud_model}" if cloud_model else ""
+        print(f"--- killed router (LOCAL_MODEL={local_model}{cloud_note}) ---")
 
 
 def _cmd_sweep(args: argparse.Namespace) -> int:
@@ -1298,6 +1336,7 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
             smoke=args.smoke,
             resume=args.resume,
             dry_run=args.dry_run,
+            seed=seed,
         )
         try:
             ret = _cmd_run(sub_args)
@@ -1309,6 +1348,7 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
 
     port = base_config.router.port
     local_model = base_config.models.local
+    cloud_model = base_config.models.cloud
     external_router = bool(getattr(args, "external_router", False))
 
     if cascade_thresholds is not None:
@@ -1335,6 +1375,7 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
                 with _router_for_model(
                     local_model,
                     port,
+                    cloud_model=cloud_model,
                     external=external_router,
                     extra_env={"ROUTER_CASCADE_THRESHOLD": str(threshold)},
                 ):
@@ -1368,7 +1409,12 @@ def _cmd_sweep(args: argparse.Namespace) -> int:
                     _run_pass(idx, strat, seed, sub_out)
         else:
             try:
-                with _router_for_model(local_model, port, external=external_router):
+                with _router_for_model(
+                    local_model,
+                    port,
+                    cloud_model=cloud_model,
+                    external=external_router,
+                ):
                     idx = 0
                     for strat in strategies:
                         for seed in seeds:
@@ -1403,7 +1449,7 @@ def _add_config_arg(sub: argparse.ArgumentParser) -> None:
         "-c",
         type=Path,
         required=True,
-        help="Path to a YAML config under configs/variants/.",
+        help="Path to a sweep YAML config under configs/ (e.g. configs/v1.4-canonical-gemma4.yaml).",
     )
     sub.add_argument(
         "--set",
@@ -1441,7 +1487,10 @@ def main(argv: list[str] | None = None) -> int:
     p_env.add_argument("--out", type=Path, default=None)
     p_env.set_defaults(func=_cmd_env_detect)
 
-    p_analyze = sub.add_parser("analyze", help="Aggregate + ARQGC + charts.")
+    p_analyze = sub.add_parser(
+        "analyze",
+        help="Aggregate + bootstrap CIs + decision matrix + charts.",
+    )
     p_analyze.add_argument("results_dir", type=Path)
     p_analyze.set_defaults(func=_cmd_analyze)
 

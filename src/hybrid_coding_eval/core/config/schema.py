@@ -51,12 +51,11 @@ RouteStrategy = Literal[
     "cascade",
     "phase-aware",
 ]
-# v1.4 task-class taxonomy (replaces the A/B/C/D/X category letters).
+# v1.4 task-class taxonomy.
 TaskClass = Literal["puzzles", "refactors", "real-prs"]
-# Friendly agent names surfaced in BenchmarkConfig.agents. The orchestrator
-# still routes internally by ``R6/R7/R8/R9/R10`` route ids; the agents-list
-# is the user-facing surface for picking which agent loops to sweep.
-Agent = Literal["aider", "opencode", "mini-swe-agent", "claude-code", "cline"]
+# Friendly agent names surfaced in ``BenchmarkConfig.agents``. Each name
+# resolves to one module under ``src/hybrid_coding_eval/agents/``.
+Agent = Literal["aider", "opencode", "mini-swe-agent", "cline"]
 
 
 class ModelsConfig(BaseModel):
@@ -65,22 +64,20 @@ class ModelsConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cloud: str = Field(
-        ..., description="Cloud model id (e.g. 'gpt-5.5'). Used by R1 + R3 + R4 supervisor."
+        ...,
+        description="Cloud model id (e.g. 'gpt-5.5'). Forwarded to the router as CLOUD_MODEL.",
     )
     cloud_fallback: str | None = Field(
         default=None,
         description="Fallback cloud model if ``cloud`` 404s (e.g. 'gpt-5').",
     )
     local: str = Field(
-        ..., description="Local model id as Ollama tag (e.g. 'devstral:24b')."
-    )
-    judge: str = Field(
-        default="claude-opus-4-7",
-        description="LLM-judge model for custom-arch scoring (C-category).",
+        ...,
+        description="Local model id as Ollama tag (e.g. 'gemma4:31b'). Forwarded to the router as LOCAL_MODEL.",
     )
     router_classifier: str = Field(
         default="qwen3:0.6b",
-        description="Small local model used by the llm-classifier router strategy.",
+        description="Small local model used by the llm-classifier + cascade router strategies.",
     )
     local_base_url: str = Field(
         default="http://127.0.0.1:11434/v1",
@@ -99,7 +96,7 @@ class RouterConfig(BaseModel):
 
     strategy: RouteStrategy = Field(
         default="heuristic",
-        description="Which routing strategy R3's per-step executor uses.",
+        description="Routing strategy the proxy uses for each agent call.",
     )
     port: int = Field(default=8787, description="Router proxy port.")
     banner: bool = Field(
@@ -112,41 +109,38 @@ class RouterConfig(BaseModel):
     )
     prompt_cache: bool = Field(
         default=False,
-        description="Turn on OpenAI prompt caching on static R3 prefixes.",
+        description="Turn on OpenAI prompt caching on static system prefixes.",
     )
 
 
 class BenchmarkConfig(BaseModel):
     """Which task classes × agents × how many tasks.
 
-    v1.4 replaces the legacy ``categories`` (A/B/C/D/X) + ``routes``
-    (R1–R8) surface with two friendly axes:
+    Two user-facing axes:
 
     * ``task_classes`` — high-level work shapes (``puzzles``,
-      ``refactors``, ``real-prs``). Each maps to one benchmark adapter
-      inside :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.
-    * ``agents`` — which coding agents to sweep
-      (``aider``, ``opencode``, ``mini-swe-agent``, ``claude-code``,
-      ``cline``). The orchestrator translates these to internal route
-      ids (R6/R7/R8/R9/R10).
+      ``refactors``, ``real-prs``). Each maps to one task-adapter inside
+      :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.
+    * ``agents`` — which coding agents to sweep (``aider``, ``opencode``,
+      ``mini-swe-agent``, ``cline``). Each resolves to one runner module
+      under ``src/hybrid_coding_eval/agents/``.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     task_classes: list[TaskClass] = Field(
-        default=["puzzles", "refactors", "real-prs"],
+        default=["puzzles", "refactors"],
         description=(
             "Which task classes to sweep. v1.4 taxonomy: ``puzzles`` "
-            "(exercism_python), ``refactors`` (real_dev), ``real-prs`` "
-            "(swebench_verified)."
+            "(Exercism Python), ``refactors`` (real-dev D-tasks), "
+            "``real-prs`` (SWE-bench Verified)."
         ),
     )
     agents: list[Agent] = Field(
-        default=["aider", "opencode", "mini-swe-agent"],
+        default=["aider", "opencode", "cline"],
         description=(
-            "Which coding agents to sweep. Defaults to the three agents "
-            "that survived the v1.4 cleanup (R6/R7/R8); ``claude-code`` "
-            "and ``cline`` (R9/R10) land in parallel."
+            "Which coding agents to sweep. Defaults to the three "
+            "agent-loop routes used across the v1.4 canonical sweeps."
         ),
     )
     tasks_per_class: dict[str, int] | None = Field(
@@ -203,7 +197,6 @@ class ScoringConfig(BaseModel):
     skip: bool = Field(
         default=False, description="Run routes without inline scoring."
     )
-    judge_temperature: float = Field(default=0.0)
     swebench_image: str = Field(
         default="hybrid-eval-python:latest",
         description="Docker image tag for the functional sandbox.",

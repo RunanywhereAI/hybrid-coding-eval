@@ -37,7 +37,6 @@ pricing:
 
 scoring:
   skip: false
-  judge_temperature: 0.0
   swebench_image: hybrid-eval-python:latest
 
 resume: false

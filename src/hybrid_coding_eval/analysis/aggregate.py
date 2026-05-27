@@ -2,7 +2,7 @@
 
 The aggregate JSON is the root document everything downstream reads:
 
-  * ``analysis.arqgc`` — needs per-row cost + quality.
+  * ``analysis.bootstrap`` — needs per-row cost + quality (CI inputs).
   * ``analysis.decision_matrix`` — needs per-(category, route) medians.
   * ``viz.*`` — need headline tiles + totals.
 
@@ -253,7 +253,7 @@ def aggregate_results(
         "tokens_local_prompt_total": int(df["local_prompt_tokens"].sum()),
         "tokens_local_completion_total": int(df["local_completion_tokens"].sum()),
     }
-    # Also break totals down per route (useful for "R3 uses X% of tokens locally").
+    # Also break totals down per agent (useful for "cline uses X% of tokens locally").
     totals_per_route: dict = {}
     for route, sub in df.groupby("route", dropna=False, sort=True):
         totals_per_route[str(route)] = {

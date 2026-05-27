@@ -10,12 +10,12 @@ The code of conduct applies in all project spaces — the GitHub repository, iss
 
 ## Reporting
 
-To report a concern that affects you or someone else in the community, email the maintainer directly:
+To report a concern that affects you or someone else in the community, email the maintainer privately:
 
 - **Maintainer:** Sanchit Monga
-- **Contact:** open a GitHub issue with the `conduct` label, or use a private channel if available.
+- **Email:** conduct@runanywhere.ai
 
-Reports will be reviewed and investigated promptly and fairly. The maintainer is obligated to respect the privacy and safety of the reporter.
+Public GitHub issues are not the right channel for conduct complaints — please use the email above so the reporter's privacy is preserved. Reports will be reviewed and investigated promptly and fairly. The maintainer is obligated to respect the privacy and safety of the reporter.
 
 ## Enforcement
 

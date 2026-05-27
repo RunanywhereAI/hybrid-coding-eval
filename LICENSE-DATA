@@ -4,28 +4,26 @@ Copyright (c) 2026 Sanchit Monga and hybrid-coding-eval contributors
 
 This license applies to non-code artefacts produced by this project:
 
-- Prior-art synthesis and research reports (`docs/PRIOR_ART.md`,
-  `research/**/report.md`, `research/**/results.json` — the synthesis,
-  not the upstream pages each report quotes).
-- Per-run metrics, decision traces, and aggregated score sheets
-  (`results/<dated-folder>/REPORT.md`, `results/<dated-folder>/raw.jsonl`,
-  and derived tables/charts).
-- Methodology, reproducing instructions, and design-decision docs
-  (`docs/METHODOLOGY.md`, `docs/REPRODUCING.md`, `docs/DECISIONS.md`,
-  `docs/ROUTING_STRATEGIES.md`, `docs/ARCHITECTURE.md`).
-- Published article text and figures (`article/**`, `viz/` PNG/SVG
-  outputs).
+- Design + methodology documentation under `docs/`
+  (`docs/HYBRID_ROUTING_DESIGN.md`, the `docs/release-notes/v1.4.*.md`
+  release notes), and the top-level `README.md`, `AGENTS.md`,
+  `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`.
+- Per-run metrics, decision traces, and aggregated score sheets shipped
+  with each release tarball (`results-v1.4.K.tar.gz`) and the tracked
+  immutable runs in `results/runs/{01..04, 07, 11}/` (raw.jsonl,
+  aggregate.json, bootstrap_cis.json, decision_matrix.md, charts).
+- Chart images produced by `src/hybrid_coding_eval/viz/` (PNG/SVG).
+- Router decision logs under `router/logs/decisions.jsonl`.
 
 It does NOT apply to:
 
-- Upstream benchmark datasets referenced or pinned by `benchmark/`
-  adapters — each retains its own license (MIT for HumanEval+/MBPP+,
-  Apache 2.0 for MBPP and FastChat-judge prompts, BigCodeBench-Hard's
-  Apache 2.0, SWE-bench Verified's CC-BY-4.0, etc.). See the adapter
-  README under each `benchmark/<name>/` subdirectory.
-- Category-D real-developer task fixtures under
-  `src/hybrid_coding_eval/benchmarks/real_dev/fixtures/`. These retain
-  their per-task licenses:
+- Upstream benchmark datasets referenced or pinned by adapters under
+  `src/hybrid_coding_eval/tasks/` — each retains its own upstream
+  license. See per-class notes in `NOTICE.md`:
+    - `tasks/puzzles/` — Exercism Python (Aider polyglot benchmark) is
+      MIT.
+    - `tasks/real_prs/` — SWE-bench Verified is CC-BY-4.0.
+- `tasks/refactors/` fixtures, which retain their per-task licenses:
     - D1, D3, D4, D5 fixtures (hand-crafted by the authors): CC-BY-4.0,
       same terms as this file.
     - D2 reference patches and regression tests (derived from public
@@ -34,10 +32,10 @@ It does NOT apply to:
       `python-jsonschema/jsonschema` and `pytest-dev/pytest`,
       BSD-3-Clause for `pallets/click` and `pallets/werkzeug`.
   Per-task source URLs, upstream repos, and SPDX identifiers are
-  enumerated in `NOTICE.md` under "Category D — real-developer tasks".
-  No GPL, AGPL, or proprietary code is used.
+  enumerated in `NOTICE.md`. No GPL, AGPL, or proprietary code is used.
 - Source code (licensed under MIT; see `LICENSE`).
-- Vendored third-party code (see `NOTICE.md`).
+- Vendored third-party code under `vendor/` (see `NOTICE.md` and
+  `vendor/README.md`).
 
 ---
 

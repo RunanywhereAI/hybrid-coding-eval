@@ -50,11 +50,11 @@ CATEGORY_SOURCES: dict[str, list[str]] = {
     "real-prs": ["real_prs"],
 }
 
-#: Valid --routes values. R6/R7/R8 are *agent-loop* routes (mini-swe-agent,
-#: aider, opencode). R9/R10 (claude-code, cline) are added in parallel by
-#: Agents B/C during the v1.4 cleanup; the dispatch entries for them live in
+#: Valid ``--routes`` / ``agents`` values. All four are *agent-loop* routes
+#: (each one drives its own multi-turn tool use against the local+cloud
+#: hybrid router proxy). The dispatch entries for these live in
 #: :func:`_runner_for` below.
-ROUTES: tuple[str, ...] = ("mini-swe-agent", "aider", "opencode", "claude-code", "cline")
+ROUTES: tuple[str, ...] = ("mini-swe-agent", "aider", "opencode", "cline")
 
 
 # --------------------------------------------------------------------------- #
@@ -215,10 +215,6 @@ def _runner_for(agent: str) -> Callable[..., ResultRow]:
         from hybrid_coding_eval.agents import opencode
 
         return opencode.run
-    if agent == "claude-code":
-        from hybrid_coding_eval.agents import claude_code
-
-        return claude_code.run
     if agent == "cline":
         from hybrid_coding_eval.agents import cline
 
@@ -284,13 +280,16 @@ def score_row(row: ResultRow, source: str, task: Any) -> Quality | None:
             logger.warning("swebench.score failed for %s: %s", row.task_id, exc)
             return None
 
-    if source == "real_dev":
-        from hybrid_coding_eval.tasks.refactors import scorers as real_dev_scorers
+    # ``refactors`` is the v1.4 task-class name; ``real_dev`` was the v1.2/v1.3
+    # source string still seen on legacy rows. Accept both so reanalysis of
+    # historical data keeps working.
+    if source in ("refactors", "real_dev"):
+        from hybrid_coding_eval.tasks.refactors import scorers as refactor_scorers
 
         try:
-            return real_dev_scorers.score(task, model_output, context={})
+            return refactor_scorers.score(task, model_output, context={})
         except Exception as exc:  # pragma: no cover — scorer should handle its own errors
-            logger.warning("real_dev.score failed for %s: %s", row.task_id, exc)
+            logger.warning("refactors.score failed for %s: %s", row.task_id, exc)
             return None
 
     logger.warning("no scorer wired up for source %r", source)
@@ -311,12 +310,19 @@ def run_pair(
     raw_path: Path,
     skip_scoring: bool,
     router_strategy: str = "heuristic",
+    seed: int | None = None,
 ) -> ResultRow:
-    """Execute one (task, route) pair end-to-end: runner → score → append.
+    """Execute one ``(task, route)`` pair end-to-end: runner → score → append.
 
-    ``router_strategy`` is forwarded to every agent-loop route — they all
-    consult the router proxy at each step to decide local-vs-cloud per
-    call. Defaults to ``heuristic``.
+    Parameters
+    ----------
+    router_strategy
+        Forwarded to every agent-loop route; each one consults the router
+        proxy at each LLM call to decide local-vs-cloud. Defaults to
+        ``"heuristic"``.
+    seed
+        Stamped onto :attr:`ResultRow.seed` for every row written this
+        pass. Used by :mod:`analysis.bootstrap` to compute multi-seed CIs.
 
     Returns the ResultRow so the caller can format a progress line.
     """
@@ -326,14 +332,16 @@ def run_pair(
         "hardware_profile_ref": hardware_profile_ref,
         "output_dir": outputs_dir,
     }
-    # Agent-loop routes all consult router_strategy.
-    if plan_item.agent in ("mini-swe-agent", "aider", "opencode", "claude-code", "cline"):
+    if plan_item.agent in ROUTES:
         runner_kwargs["router_strategy"] = router_strategy
     row = runner(plan_item.task, **runner_kwargs)
-    # Stamp the strategy onto the row regardless of route, so downstream
-    # analysis can group by (route, router_strategy) cleanly.
+
+    # Stamp metadata uniformly so downstream analysis can group + bootstrap
+    # without relying on the per-runner code path to remember.
     if row.router_strategy is None:
         row.router_strategy = router_strategy
+    if seed is not None and row.seed is None:
+        row.seed = seed
 
     if not skip_scoring:
         quality = score_row(row, plan_item.source, plan_item.task)

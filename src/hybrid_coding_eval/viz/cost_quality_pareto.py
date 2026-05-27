@@ -40,19 +40,23 @@ from hybrid_coding_eval.core.results import load_results  # noqa: E402
 __all__ = ["plot_pareto"]
 
 
-# Route → colour, category → marker. Fixed so the legend is stable
-# across reports.
+# Agent → colour, task-class → marker. Fixed so the legend is stable
+# across reports. Unknown agents/categories fall back to grey + "x".
 _ROUTE_COLORS = {
-    "R1": "#d62728",  # red — cloud-only
-    "R2": "#2ca02c",  # green — local-only
-    "R3": "#1f77b4",  # blue — hybrid-architect
-    "R4": "#9467bd",  # purple — Minion
-    "R5": "#ff7f0e",  # orange — DevMinion (architect/editor review loop)
+    "aider":          "#1f77b4",  # blue
+    "opencode":       "#ff7f0e",  # orange
+    "mini-swe-agent": "#2ca02c",  # green
+    "cline":          "#9467bd",  # purple
+    # Legacy fall-backs for re-rendering pre-v1.4 datasets.
+    "R1": "#d62728", "R2": "#2ca02c", "R3": "#1f77b4",
+    "R4": "#9467bd", "R5": "#ff7f0e",
 }
 _CATEGORY_MARKERS = {
-    "A": "o",  # small/functional
-    "B": "s",  # medium
-    "C": "^",  # architecture
+    "puzzles":   "o",   # Exercism Python
+    "refactors": "s",   # D-tasks
+    "real-prs":  "^",   # SWE-bench Verified
+    # Legacy fall-backs for re-rendering pre-v1.4 datasets.
+    "A": "o", "B": "s", "C": "^", "D": "s", "X": "o",
 }
 
 

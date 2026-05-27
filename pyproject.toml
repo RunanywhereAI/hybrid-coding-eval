@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hybrid-coding-eval"
-version = "1.4.1"
+version = "1.4.2"
 description = "Reproducible cost/latency/quality benchmark comparing local vs cloud vs hybrid LLM routing for coding tasks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,7 +27,7 @@ dev = [
     "pytest>=8.3,<9",
     "ruff>=0.5,<1",
 ]
-# Python-side agentic runners (R6 mini-swe-agent, R7 aider). R8/R9/R10
+# Python-side coding agents (mini-swe-agent + aider). opencode and cline
 # ship as separate Node/npm CLIs and are installed by ``bench setup``.
 # Install with: ``pip install -e ".[agents]"``.
 agents = [
@@ -56,8 +56,9 @@ line-length = 100
 extend-exclude = [
     "vendor",
     "archive",
-    "src/hybrid_coding_eval/benchmarks/real_dev/fixtures",
-    "src/hybrid_coding_eval/benchmarks/exercism_python/fixtures",
+    "src/hybrid_coding_eval/tasks/refactors/fixtures",
+    "src/hybrid_coding_eval/tasks/puzzles/fixtures",
+    "src/hybrid_coding_eval/tasks/real_prs/fixtures",
 ]
 
 [tool.ruff.lint]

@@ -50,7 +50,6 @@ def test_historical_row_still_round_trips():
         "variant",
         "cloud_model_id",
         "local_model_id",
-        "judge_model_id",
         "router_classifier_model_id",
         "router_strategy",
         "seed",
@@ -66,8 +65,7 @@ def test_new_fields_survive_round_trip():
     row = _base_row(
         variant="r4-cachedA",
         cloud_model_id="gpt-5.5",
-        local_model_id="devstral:24b",
-        judge_model_id="claude-opus-4-7",
+        local_model_id="gemma4:31b",
         router_classifier_model_id="qwen3:0.6b",
         router_strategy="heuristic",
         seed=42,
@@ -77,8 +75,7 @@ def test_new_fields_survive_round_trip():
     back = ResultRow.from_dict(d)
     assert back.variant == "r4-cachedA"
     assert back.cloud_model_id == "gpt-5.5"
-    assert back.local_model_id == "devstral:24b"
-    assert back.judge_model_id == "claude-opus-4-7"
+    assert back.local_model_id == "gemma4:31b"
     assert back.router_classifier_model_id == "qwen3:0.6b"
     assert back.router_strategy == "heuristic"
     assert back.seed == 42

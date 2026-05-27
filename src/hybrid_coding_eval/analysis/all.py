@@ -1,18 +1,17 @@
-"""One-shot pipeline: aggregate → arqgc → decision matrix → charts.
+"""One-shot pipeline: aggregate → bootstrap → decision matrix → charts.
 
 Run against a sweep directory containing ``raw.jsonl``::
 
-    python -m analysis.all results/full-sweep/
+    python -m hybrid_coding_eval.analysis.all results/runs/<sweep>/
 
 Writes the following artefacts in-place:
 
-  * ``<dir>/aggregate.json`` — :func:`analysis.aggregate.aggregate_results`.
-  * ``<dir>/arqgc.json`` — :func:`analysis.arqgc.bounded_arqgc`.
-  * ``<dir>/decision_matrix.md``
-  * ``<dir>/charts/pareto.png``
-  * ``<dir>/charts/heatmap_quality.png``
-  * ``<dir>/charts/heatmap_cost.png``
-  * ``<dir>/charts/heatmap_arqgc.png``
+* ``<dir>/aggregate.json`` — :func:`analysis.aggregate.aggregate_results`.
+* ``<dir>/bootstrap_cis.json`` — :func:`analysis.bootstrap.bootstrap_cells_for_rows`.
+* ``<dir>/decision_matrix.md`` — :func:`analysis.decision_matrix.build_decision_matrix`.
+* ``<dir>/charts/pareto.png``
+* ``<dir>/charts/heatmap_quality.png``
+* ``<dir>/charts/heatmap_cost.png``
 
 Safe on partial sweeps: skips cells without data, never crashes.
 """
@@ -24,24 +23,13 @@ import json
 import sys
 from pathlib import Path
 
-_here = Path(__file__).resolve()
-for _p in (_here, *_here.parents):
-    if (_p / "pyproject.toml").is_file():
-        _REPO_ROOT = _p
-        break
-else:  # pragma: no cover
-    _REPO_ROOT = _here.parent.parent
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from hybrid_coding_eval.analysis.aggregate import aggregate_results  # noqa: E402
-from hybrid_coding_eval.analysis.arqgc import bounded_arqgc  # noqa: E402
-from hybrid_coding_eval.analysis.bootstrap import bootstrap_aggregate  # noqa: E402
-from hybrid_coding_eval.analysis.cost_scenarios import PRICING_SCENARIOS  # noqa: E402
-from hybrid_coding_eval.analysis.decision_matrix import build_decision_matrix  # noqa: E402
-from hybrid_coding_eval.core.results import load_results  # noqa: E402
-from hybrid_coding_eval.viz.cost_quality_pareto import plot_pareto  # noqa: E402
-from hybrid_coding_eval.viz.decision_heatmap import plot_heatmap  # noqa: E402
+from hybrid_coding_eval.analysis.aggregate import aggregate_results
+from hybrid_coding_eval.analysis.bootstrap import bootstrap_cells_for_rows
+from hybrid_coding_eval.analysis.cost_scenarios import PRICING_SCENARIOS
+from hybrid_coding_eval.analysis.decision_matrix import build_decision_matrix
+from hybrid_coding_eval.core.results import load_results
+from hybrid_coding_eval.viz.cost_quality_pareto import plot_pareto
+from hybrid_coding_eval.viz.decision_heatmap import plot_heatmap
 
 
 def run_pipeline(
@@ -62,53 +50,43 @@ def run_pipeline(
         scenarios = PRICING_SCENARIOS
 
     agg_path = d / "aggregate.json"
-    arqgc_path = d / "arqgc.json"
     bootstrap_path = d / "bootstrap_cis.json"
     decision_path = d / "decision_matrix.md"
     charts_dir = d / "charts"
     charts_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Aggregate.
     agg = aggregate_results(raw, agg_path, pricing_scenarios=scenarios)
 
-    # 2. ARQGC (need the rows again — cheap to reload).
     rows = load_results(raw)
-    arqgc = bounded_arqgc(rows, scenario=scenario)
-    arqgc_path.write_text(json.dumps(arqgc, indent=2))
-
-    # 3. Bootstrap CIs (v1.1+). Stratified by (category, route, strategy);
-    #    pools across seeds. Skipped silently on empty sweeps.
-    bootstrap = bootstrap_aggregate(rows) if rows else None
+    bootstrap = (
+        bootstrap_cells_for_rows(rows, scenario=scenario) if rows else None
+    )
     if bootstrap is not None:
         bootstrap_path.write_text(json.dumps(bootstrap, indent=2))
 
-    # 4. Decision matrix.
-    build_decision_matrix(agg, arqgc, decision_path, default_scenario=scenario)
+    build_decision_matrix(agg, bootstrap, decision_path, default_scenario=scenario)
 
-    # 4. Charts — don't crash the pipeline if one chart fails.
     chart_paths: dict = {}
     if rows:
         try:
             chart_paths["pareto"] = plot_pareto(rows, charts_dir / "pareto.png", scenario=scenario)
-        except Exception as e:  # pragma: no cover — defensive.
-            print(f"pareto chart failed: {e}", file=sys.stderr)
-        for metric in ("quality", "cost", "arqgc"):
+        except Exception as exc:  # pragma: no cover — defensive
+            print(f"pareto chart failed: {exc}", file=sys.stderr)
+        for metric in ("quality", "cost"):
             try:
                 chart_paths[f"heatmap_{metric}"] = plot_heatmap(
                     agg,
                     charts_dir / f"heatmap_{metric}.png",
                     metric=metric,
                     scenario=scenario,
-                    arqgc=arqgc if metric == "arqgc" else None,
                 )
-            except Exception as e:  # pragma: no cover
-                print(f"heatmap {metric} failed: {e}", file=sys.stderr)
+            except Exception as exc:  # pragma: no cover
+                print(f"heatmap {metric} failed: {exc}", file=sys.stderr)
     else:
         print("no rows in sweep — skipping chart generation", file=sys.stderr)
 
     return {
         "aggregate": agg_path,
-        "arqgc": arqgc_path,
         "bootstrap_cis": bootstrap_path if bootstrap is not None else None,
         "decision_matrix": decision_path,
         "charts": chart_paths,
@@ -118,7 +96,7 @@ def run_pipeline(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="analysis.all",
+        prog="hybrid_coding_eval.analysis.all",
         description="Run the full analysis pipeline on a sweep directory.",
     )
     p.add_argument("sweep_dir", type=Path, help="Directory containing raw.jsonl")

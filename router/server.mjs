@@ -37,7 +37,7 @@ const AGENT_HEURISTIC_THRESHOLD = parseInt(
 // Optional comma-separated list of extra system-prompt markers that
 // identify an agent call (in addition to the built-in mini-swe-agent /
 // aider / opencode patterns). Per-tool integration may extend this at
-// runtime — see docs/AGENTIC_ROUTES.md.
+// runtime — see docs/HYBRID_ROUTING_DESIGN.md §3.
 const EXTRA_AGENT_MARKERS = (process.env.ROUTER_AGENT_SYSTEM_MARKERS || "")
   .split(",")
   .map((s) => s.trim())

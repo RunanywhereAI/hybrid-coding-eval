@@ -22,13 +22,15 @@ SOFTWARE.
 
 ---
 
-This license applies to the harness code (router/, runners/, scorers/,
-analysis/, viz/, bin/, benchmark/ adapters, lib/, tests/, and all top-level
-scripts). It does NOT apply to:
+This license applies to the harness code under `src/`, `router/`,
+`tests/`, `configs/`, `scripts/`, and the top-level `bench` dispatcher.
+It does NOT apply to:
 
-- Benchmark datasets (HumanEval+, MBPP+, BigCodeBench-Hard, SWE-bench
-  Verified, LiveCodeBench, Aider Polyglot) — each retains its upstream
-  license; see the respective adapter README under `benchmark/`.
-- Vendored third-party code under `EXTERNAL/` — see `NOTICE.md`.
-- Results datasets, per-run metrics, prior-art synthesis, article text, and
-  figures — licensed under CC-BY-4.0; see `LICENSE-DATA`.
+- Upstream benchmark datasets referenced or pinned by adapters under
+  `src/hybrid_coding_eval/tasks/` (Aider Polyglot / Exercism Python is
+  MIT, SWE-bench Verified is CC-BY-4.0, etc.). Each retains its upstream
+  license — see `NOTICE.md`.
+- Vendored third-party code under `vendor/` — see `NOTICE.md` and
+  `vendor/README.md`.
+- Results datasets, per-run metrics, charts, and docs prose — licensed
+  under CC-BY-4.0; see `LICENSE-DATA`.

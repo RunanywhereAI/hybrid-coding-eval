@@ -2,15 +2,14 @@
   "$defs": {
     "BenchmarkConfig": {
       "additionalProperties": false,
-      "description": "Which task classes × agents × how many tasks.\n\nv1.4 replaces the legacy ``categories`` (A/B/C/D/X) + ``routes``\n(R1–R8) surface with two friendly axes:\n\n* ``task_classes`` — high-level work shapes (``puzzles``,\n  ``refactors``, ``real-prs``). Each maps to one benchmark adapter\n  inside :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.\n* ``agents`` — which coding agents to sweep\n  (``aider``, ``opencode``, ``mini-swe-agent``, ``claude-code``,\n  ``cline``). The orchestrator translates these to internal route\n  ids (R6/R7/R8/R9/R10).",
+      "description": "Which task classes × agents × how many tasks.\n\nTwo user-facing axes:\n\n* ``task_classes`` — high-level work shapes (``puzzles``,\n  ``refactors``, ``real-prs``). Each maps to one task-adapter inside\n  :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.\n* ``agents`` — which coding agents to sweep (``aider``, ``opencode``,\n  ``mini-swe-agent``, ``cline``). Each resolves to one runner module\n  under ``src/hybrid_coding_eval/agents/``.",
       "properties": {
         "task_classes": {
           "default": [
             "puzzles",
-            "refactors",
-            "real-prs"
+            "refactors"
           ],
-          "description": "Which task classes to sweep. v1.4 taxonomy: ``puzzles`` (exercism_python), ``refactors`` (real_dev), ``real-prs`` (swebench_verified).",
+          "description": "Which task classes to sweep. v1.4 taxonomy: ``puzzles`` (Exercism Python), ``refactors`` (real-dev D-tasks), ``real-prs`` (SWE-bench Verified).",
           "items": {
             "enum": [
               "puzzles",
@@ -26,15 +25,14 @@
           "default": [
             "aider",
             "opencode",
-            "mini-swe-agent"
+            "cline"
           ],
-          "description": "Which coding agents to sweep. Defaults to the three agents that survived the v1.4 cleanup (R6/R7/R8); ``claude-code`` and ``cline`` (R9/R10) land in parallel.",
+          "description": "Which coding agents to sweep. Defaults to the three agent-loop routes used across the v1.4 canonical sweeps.",
           "items": {
             "enum": [
               "aider",
               "opencode",
               "mini-swe-agent",
-              "claude-code",
               "cline"
             ],
             "type": "string"
@@ -99,7 +97,7 @@
       "description": "Which models make up cloud / local / judge / router-classifier slots.",
       "properties": {
         "cloud": {
-          "description": "Cloud model id (e.g. 'gpt-5.5'). Used by R1 + R3 + R4 supervisor.",
+          "description": "Cloud model id (e.g. 'gpt-5.5'). Forwarded to the router as CLOUD_MODEL.",
           "title": "Cloud",
           "type": "string"
         },
@@ -117,19 +115,13 @@
           "title": "Cloud Fallback"
         },
         "local": {
-          "description": "Local model id as Ollama tag (e.g. 'devstral:24b').",
+          "description": "Local model id as Ollama tag (e.g. 'gemma4:31b'). Forwarded to the router as LOCAL_MODEL.",
           "title": "Local",
-          "type": "string"
-        },
-        "judge": {
-          "default": "claude-opus-4-7",
-          "description": "LLM-judge model for custom-arch scoring (C-category).",
-          "title": "Judge",
           "type": "string"
         },
         "router_classifier": {
           "default": "qwen3:0.6b",
-          "description": "Small local model used by the llm-classifier router strategy.",
+          "description": "Small local model used by the llm-classifier + cascade router strategies.",
           "title": "Router Classifier",
           "type": "string"
         },
@@ -189,7 +181,7 @@
       "properties": {
         "strategy": {
           "default": "heuristic",
-          "description": "Which routing strategy R3's per-step executor uses.",
+          "description": "Routing strategy the proxy uses for each agent call.",
           "enum": [
             "always-local",
             "always-cloud",
@@ -230,7 +222,7 @@
         },
         "prompt_cache": {
           "default": false,
-          "description": "Turn on OpenAI prompt caching on static R3 prefixes.",
+          "description": "Turn on OpenAI prompt caching on static system prefixes.",
           "title": "Prompt Cache",
           "type": "boolean"
         }
@@ -247,11 +239,6 @@
           "description": "Run routes without inline scoring.",
           "title": "Skip",
           "type": "boolean"
-        },
-        "judge_temperature": {
-          "default": 0.0,
-          "title": "Judge Temperature",
-          "type": "number"
         },
         "swebench_image": {
           "default": "hybrid-eval-python:latest",
@@ -296,13 +283,12 @@
       "default": {
         "task_classes": [
           "puzzles",
-          "refactors",
-          "real-prs"
+          "refactors"
         ],
         "agents": [
           "aider",
           "opencode",
-          "mini-swe-agent"
+          "cline"
         ],
         "tasks_per_class": null,
         "task_ids": null,
@@ -330,7 +316,6 @@
       "$ref": "#/$defs/ScoringConfig",
       "default": {
         "skip": false,
-        "judge_temperature": 0.0,
         "swebench_image": "hybrid-eval-python:latest"
       }
     },

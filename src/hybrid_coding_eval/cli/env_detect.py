@@ -464,12 +464,9 @@ def compute_self_hash(manifest: dict[str, Any]) -> str:
 # Entry point
 # ---------------------------------------------------------------------------
 
-def _repo_root() -> Path:
-    # The script lives at <repo>/bin/env-detect.py
-    return Path(__file__).resolve().parent.parent
-
-
 def build_manifest() -> dict[str, Any]:
+    from hybrid_coding_eval.core.paths import repo_root as _repo_root
+
     repo_root = _repo_root()
     git_sha, git_branch = detect_git(repo_root)
 

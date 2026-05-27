@@ -1,7 +1,7 @@
 # v1.4 strategy-sweep — 8-strategy explainer evidence.
 #
 # Tests all 8 strategies on the same (agent, model, task-set) cell so
-# the docs/ROUTING_STRATEGIES.md beginner explainer has measured numbers.
+# docs/HYBRID_ROUTING_DESIGN.md §4 has measured numbers per strategy.
 #
 # 8 strategies × 1 agent (aider) × 1 model (gemma4) × 8 tasks × 3 seeds = 192 rows, ~3h.
 # Run with --strategies explicitly passing all 8.
@@ -45,7 +45,6 @@ pricing:
 
 scoring:
   skip: false
-  judge_temperature: 0.0
   swebench_image: hybrid-eval-python:latest
 
 resume: false
