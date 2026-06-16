@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hybrid-coding-eval — launch posts (X + LinkedIn)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --muted:#8b949e;
+          --accent:#6A1B9A; --local:#2E7D32; --cloud:#1565C0; --ok:#238636; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  h2 { font-size:20px; margin:40px 0 6px; padding-top:18px; border-top:1px solid var(--border); }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  .note { background:#1f2430; border:1px solid var(--border); border-left:3px solid var(--accent);
+          border-radius:8px; padding:12px 16px; color:var(--fg); font-size:14px; margin:14px 0 24px; }
+  .note b { color:#ffd479; }
+  .block { background:var(--card); border:1px solid var(--border); border-radius:10px;
+           margin:14px 0; overflow:hidden; }
+  .block .head { display:flex; align-items:center; justify-content:space-between;
+                 padding:9px 14px; background:#11161d; border-bottom:1px solid var(--border); }
+  .block .label { font-size:13px; color:var(--muted); font-weight:600; }
+  .block .img { font-size:12px; color:var(--cloud); }
+  pre { margin:0; padding:16px; white-space:pre-wrap; word-wrap:break-word;
+        font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  button.copy { cursor:pointer; border:1px solid var(--border); background:#21262d; color:var(--fg);
+                border-radius:6px; padding:5px 12px; font-size:13px; font-weight:600; }
+  button.copy:hover { background:#2d333b; }
+  button.copy.done { background:var(--ok); border-color:var(--ok); }
+  .imgs { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0; }
+  .imgs figure { margin:0; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:8px; }
+  .imgs img { width:100%; border-radius:6px; display:block; }
+  .imgs figcaption { font-size:12px; color:var(--muted); padding:6px 2px 2px; }
+  .pill { display:inline-block; font-size:12px; padding:2px 9px; border-radius:20px; margin-right:6px; }
+  .pill.x { background:#1d9bf022; color:#1d9bf0; border:1px solid #1d9bf055; }
+  .pill.li { background:#0a66c222; color:#4596ec; border:1px solid #0a66c255; }
+  a { color:#58a6ff; }
+  .meta { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>hybrid-coding-eval — launch posts</h1>
+  <p class="sub">Copy-paste ready for X and LinkedIn. Numbers verified against the official
+  release datasets. Open this file in a browser; click <b>Copy</b> on any block.</p>
+
+  <div class="note">
+    <b>Link mechanics matter in 2026.</b> On <b>X</b>: tweet&nbsp;1 carries <b>no link</b> — put the repo URL
+    in your first reply and in tweet&nbsp;8. On <b>LinkedIn</b>: put the link in the <b>first comment</b>, not the body.
+    One image per tweet; attach the PDF carousel on LinkedIn. Images live in <span class="meta">docs/social/images/</span>.
+  </div>
+
+  <h2>Shareable images</h2>
+  <div class="imgs">
+    <figure><img src="images/headline-results.png" alt="headline results"><figcaption>headline-results.png — hero / tweet 1</figcaption></figure>
+    <figure><img src="images/pareto-cost-quality.png" alt="pareto"><figcaption>pareto-cost-quality.png — the win / tweet 3</figcaption></figure>
+    <figure><img src="images/d6-hard-limit.png" alt="d6 limit"><figcaption>d6-hard-limit.png — the honest limit / tweet 4</figcaption></figure>
+    <figure><img src="images/architecture.png" alt="architecture"><figcaption>architecture.png — how it works / tweet 2</figcaption></figure>
+  </div>
+
+  <h2><span class="pill x">X / Twitter</span> 8-tweet thread</h2>
+  <div id="x"></div>
+
+  <h2><span class="pill li">LinkedIn</span> post + first comment</h2>
+  <div id="li"></div>
+
+  <p class="meta">Repo: <a href="https://github.com/RunanywhereAI/hybrid-coding-eval">github.com/RunanywhereAI/hybrid-coding-eval</a>
+  · full source for these posts: <span class="meta">docs/social/X-THREAD.md</span>, <span class="meta">docs/social/LINKEDIN-POST.md</span></p>
+</div>
+
+<script>
+const X = [
+  ["Tweet 1 · hook", "headline-results.png", `A 35B model running on my laptop solved 100% of a real-world coding-refactor benchmark — while sending just 8% of its tokens to the cloud. Cost: ~$0.022/task.
+
+The full local vs cloud vs hybrid benchmark, on one M4 Max, with 95% CIs on every number 🧵👇`],
+  ["Tweet 2 · why", "architecture.png", `The price gap between a frontier cloud model and a capable local one is now ~100×.
+
+So I stopped asking "can the cloud do it?" and measured "which coding tasks can stay on my laptop?"
+
+Same agent, same task, 8 routing strategies — a router decides local vs cloud per call.`],
+  ["Tweet 3 · the win", "pareto-cost-quality.png", `Result #1 — the sweet spot:
+
+cline + qwen3.6 (local) + "cascade" routing
+→ 24/24 = 100% on real-developer refactors
+→ only 8% of tokens go to the cloud
+→ ~$0.022 per task
+
+Same quality as always-cloud, at a fraction of the cost.`],
+  ["Tweet 4 · honest limit", "d6-hard-limit.png", `Result #2 — the honest limit (the part hype benchmarks skip):
+
+On genuinely HARD tasks (an LRU+TTL cache, a template engine, toposort):
+→ local-only: 67%, $0 cloud
+→ cloud-only: 100%
+
+A real 33-point gap. The cloud still earns its keep.`],
+  ["Tweet 5 · the lever", "(text only)", `The non-obvious finding:
+
+The biggest lever is the LOCAL MODEL, not the routing cleverness.
+
+And fancy "cloud-plans / local-executes" orchestration? It cost 1.9×–5× MORE than just calling the cloud — for zero quality gain.
+
+Boring per-call routing wins.`],
+  ["Tweet 6 · rigor", "headline-results.png", `Why you can trust the numbers:
+
+→ every result = one row in raw.jsonl
+→ cost = tokens × a pinned price table (re-price under any model, no re-run)
+→ bootstrap 95% CIs on every cell
+
+1,704 rows · 3 local models · 3 agents · 8 strategies · 17 tasks · one laptop.`],
+  ["Tweet 7 · reproduce", "code screenshot", `You can reproduce it from a clean clone:
+
+  git clone … && ./bench setup
+  ./bench sweep --config configs/v1.4-smoke.yaml --strategies always-cloud
+  ./bench analyze …
+
+~30s smoke run (cloud-only, no model pull). Full sweep ~10–15h on an M4 Max. Repo 👇`],
+  ["Tweet 8 · CTA + link", "(text only)", `It's MIT-licensed and reproducible from a clean clone.
+
+Star it, run the sweep on your own hardware, and tell me where your local model breaks 👇
+
+github.com/RunanywhereAI/hybrid-coding-eval
+
+#LocalLLM #opensource`],
+  ["First reply to tweet 1", "(post right after)", `Repo, full dataset, per-task breakdowns and reproduction steps:
+github.com/RunanywhereAI/hybrid-coding-eval`],
+];
+
+const LI = [
+  ["LinkedIn post body", "carousel: 6 slides", `I gave a 30B model running on my laptop the hard coding tasks. It solved two-thirds of them — for $0 in cloud spend.
+
+The real question for coding LLMs isn't "can the cloud do it?" anymore. It's "which tasks can stay on my laptop?"
+
+A frontier cloud model now costs roughly 100× a 30B local one.
+
+And the agents got good enough that the bottleneck isn't raw capability — it's routing: which calls actually need the cloud.
+
+So I built hybrid-coding-eval: a reproducible benchmark that runs real coding agents on a single M4 Max laptop and routes every LLM call — local or cloud — per call. Every published number traces back to one row in a log, priced by a versioned table.
+
+What 1,704 runs showed:
+
+→ 100% pass-rate at 8% cloud usage, ~$0.022/task — cline + qwen3.6 + cascade routing, on real-developer refactors. Same quality as cloud-only, a fraction of the cost.
+
+→ 67% of genuinely HARD tasks solved fully local, $0 cloud. A real privacy/cost option, not a toy.
+
+→ Where it breaks (the honest negative): heuristic routing drops to 58% on hard tasks while spending 68% of tokens on the cloud — scoring less and costing more.
+
+→ The biggest lever is the local model, not the routing trick. And multi-step "cloud-plans / local-executes" orchestration cost 1.9–5× more for no quality gain.
+
+The bottleneck isn't the model anymore. It's the routing.
+
+It's MIT-licensed and reproducible from a clean clone — you can benchmark your own local model in three commands.
+
+If you route coding tasks today: where do you think local stops being good enough? Run it on your model and tell me where my routing breaks.
+
+Repo (MIT) + full dataset and per-task numbers in the first comment 👇
+
+#LLM #OpenSource #LocalLLM`],
+  ["First comment", "(post right after)", `Repo, full dataset, and per-task breakdowns: github.com/RunanywhereAI/hybrid-coding-eval
+
+Built on one M4 Max 64GB. 3 local models · 3 coding agents · 8 routing strategies · 17 tasks. Reproduce the smoke run in ~30 seconds; full sweep in ~10–15h. Stars + new-model requests welcome.`],
+];
+
+function render(items, mountId) {
+  const mount = document.getElementById(mountId);
+  items.forEach(([label, img, text]) => {
+    const block = document.createElement("div");
+    block.className = "block";
+    const head = document.createElement("div");
+    head.className = "head";
+    head.innerHTML = `<span class="label">${label}</span><span class="img">🖼 ${img}</span>`;
+    const btn = document.createElement("button");
+    btn.className = "copy"; btn.textContent = "Copy";
+    btn.onclick = () => {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copied ✓"; btn.classList.add("done");
+        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600);
+      });
+    };
+    head.appendChild(btn);
+    const pre = document.createElement("pre");
+    pre.textContent = text;
+    block.appendChild(head); block.appendChild(pre);
+    mount.appendChild(block);
+  });
+}
+render(X, "x");
+render(LI, "li");
+</script>
+</body>
+</html>

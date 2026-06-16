@@ -21,11 +21,13 @@ in `results/runs/<sweep>/raw.jsonl`, priced by a versioned pricing table.
 | Cell | Pass-rate | Cloud-fraction | Notes |
 | --- | --- | --- | --- |
 | `cline + qwen3.6 + cascade + refactors` (D1/D5) | **24/24 = 100%** | **8%** | The cleanest hybrid cell in the benchmark — $0.022/task |
-| `cline + qwen3.6 + always-local + refactors` (D6 hard tasks) | **8/12 = 67%** | **0%** | 30B local-only ceiling, **zero cloud spend** |
+| `cline + qwen3.6 + always-local + refactors` (D6 hard tasks) | **8/12 = 67%**¹ | **0%** | 30B local-only ceiling, **zero cloud spend** |
 | `cline + qwen3.6 + always-local + puzzles` | 15/15 = 100% | 0% | Local-only nails Exercism Python |
 | `aider + gemma4 + heuristic + refactors` (D1/D5) | 23/24 = 96% [88, 100] | 34% | v1.3 marquee — replicates |
-| `aider + gemma4 + heuristic + refactors` (D6 hard tasks) | 7/12 = 58% | 61% | Where heuristic routing breaks on harder tasks |
+| `aider + gemma4 + heuristic + refactors` (D6 hard tasks) | 7/12 = 58% | 68% | Where heuristic routing breaks on harder tasks |
 | `aider + gemma4 / cline + qwen3.6 + always-cloud` (D6 hard tasks) | 12/12 = 100% | 100% | gpt-5.5 ceiling on D6 |
+
+¹ Conservative reading: 3 of the 4 misses are `cline` session-management bugs (the model never wrote code), not quality failures. The analyzer, which excludes error rows, scores this cell **8/9 = 89%**. We quote the stricter 67% in the headline.
 
 Full numbers, confidence intervals, per-task breakdowns, and the
 real-world walkthrough of every refactor we measured live in
@@ -205,7 +207,7 @@ Distilled from the v1.5 leaderboard:
 What to **avoid**:
 
 - `opencode + qwen models` — opencode's prompting is gemma4-shaped.
-- `aider + heuristic` on D6-class tasks — the router escalates the wrong fraction (58%).
+- `aider + heuristic` on D6-class tasks — only 58% pass while the router still sends 68% of tokens to the cloud (scores less, spends more).
 - `mini-swe-agent + any local model` — not yet competitive with `aider` or `cline` on this benchmark.
 
 ## Sweep lifecycle (long sweeps)
