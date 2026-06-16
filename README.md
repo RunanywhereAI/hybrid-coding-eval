@@ -16,6 +16,8 @@ in `results/runs/<sweep>/raw.jsonl`, priced by a versioned pricing table.
 
 **1,704 rows · 3 local models · 3 coding agents · 8 routing strategies · 17 tasks · 7 releases in 8 days.**
 
+![A local 30B-class model carries everyday coding; the cloud earns its keep on hard tasks](./docs/images/headline-results.png)
+
 ## Headline findings
 
 | Cell | Pass-rate | Cloud-fraction | Notes |
@@ -161,7 +163,21 @@ See [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md) for
 the canonical design doc: what each agent does, how each routing strategy
 decides, what each task class measures, and the result schema.
 
+### What complexity are we measuring?
+
+Deliberately the **everyday tier** — single-function puzzles up to senior
+single-file builds (an LRU+TTL cache, a recursive-descent template engine). This
+is **not** the long-horizon frontier (e.g. [SWE-Marathon](https://www.swemarathon.org/):
+multi-hour, whole-repo tasks where even Opus 4.8 tops out ~26%). Real merged PRs
+(SWE-bench Verified) were measured in the MVP era; the v1.x adapter ships and the
+agentic sweep is v1.6 work. We scope to where the laptop-vs-cloud question
+actually bites.
+
+![Where these tasks sit on the difficulty spectrum](./docs/images/complexity-spectrum.png)
+
 ## How it works (60-second tour)
+
+![Route every LLM call to the laptop or the cloud, then measure the trade-off](./docs/images/architecture.png)
 
 ```text
 ./bench sweep --config configs/v1.4-canonical-gemma4.yaml
@@ -194,6 +210,8 @@ repo owns the **routing, the scoring, the analysis, and the result schema**
 — it doesn't try to be a coding agent.
 
 ## Picking a config for real work
+
+![Hybrid routing sits on the cost/quality frontier](./docs/images/pareto-cost-quality.png)
 
 Distilled from the v1.5 leaderboard:
 
@@ -326,14 +344,13 @@ Third-party tools driven by this harness:
 
 ## Read next
 
-1. [`docs/ARTICLE.md`](./docs/ARTICLE.md) — the narrative overview: the question, the strategies in plain terms, what was benchmarked (incl. honest SWE-bench status), and the findings.
-2. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — clean-clone → green-charts → compare-against-canonical, step by step.
-3. [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md) — the single canonical design doc (strategies, agents, schema, methodology).
-4. [`docs/release-notes/v1.5.0.md`](./docs/release-notes/v1.5.0.md) — most recent findings (D6 hard-task stress test).
-5. [`docs/release-notes/v1.4.1.md`](./docs/release-notes/v1.4.1.md) — the canonical 3-model leaderboard.
-6. [`AGENTS.md`](./AGENTS.md) — folder-by-folder map for AI coding agents reading the codebase.
-7. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — add a model, agent, strategy, or task class.
-8. [`SECURITY.md`](./SECURITY.md) — vulnerability-disclosure channel.
+1. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — clean-clone → green-charts → compare-against-canonical, step by step.
+2. [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md) — the single canonical design doc (strategies, agents, schema, methodology).
+3. [`docs/release-notes/v1.5.0.md`](./docs/release-notes/v1.5.0.md) — most recent findings (D6 hard-task stress test).
+4. [`docs/release-notes/v1.4.1.md`](./docs/release-notes/v1.4.1.md) — the canonical 3-model leaderboard.
+5. [`AGENTS.md`](./AGENTS.md) — folder-by-folder map for AI coding agents reading the codebase.
+6. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — add a model, agent, strategy, or task class.
+7. [`SECURITY.md`](./SECURITY.md) — vulnerability-disclosure channel.
 
 Questions, reproduction issues, or new-model requests? File an issue:
 <https://github.com/RunanywhereAI/hybrid-coding-eval/issues>

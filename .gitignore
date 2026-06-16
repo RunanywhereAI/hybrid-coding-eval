@@ -50,3 +50,10 @@ reports/
 # pre-v1.1 pilot runs, iteration logs + LLM-judge reviews under iterations/).
 # Not part of the OSS surface — kept here for the article publication workflow.
 personal/
+
+# --- promotional article + social posts (kept LOCAL, not part of the public repo) ---
+# The narrative article and the X/LinkedIn launch posts live here for the
+# publication workflow but are intentionally untracked. The charts they use
+# are tracked under docs/images/ (also embedded in README.md).
+docs/ARTICLE.md
+docs/social/
