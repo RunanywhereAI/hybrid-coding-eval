@@ -10,7 +10,7 @@
 
 A reproducible benchmark harness that measures four coding agents
 (`aider`, `opencode`, `mini-swe-agent`, `cline`) across eight routing
-strategies and three local models, against frontier cloud LLMs — on one
+strategies and three local models, against frontier cloud LLMs, on one
 M4 Max 64 GB laptop. Every published number traces back to a single row
 in `results/runs/<sweep>/raw.jsonl`, priced by a versioned pricing table.
 
@@ -22,10 +22,10 @@ in `results/runs/<sweep>/raw.jsonl`, priced by a versioned pricing table.
 
 | Cell | Pass-rate | Cloud-fraction | Notes |
 | --- | --- | --- | --- |
-| `cline + qwen3.6 + cascade + refactors` (D1/D5) | **24/24 = 100%** | **8%** | The cleanest hybrid cell in the benchmark — $0.022/task |
+| `cline + qwen3.6 + cascade + refactors` (D1/D5) | **24/24 = 100%** | **8%** | The cleanest hybrid cell in the benchmark, $0.022/task |
 | `cline + qwen3.6 + always-local + refactors` (D6 hard tasks) | **8/12 = 67%**¹ | **0%** | 30B local-only ceiling, **zero cloud spend** |
 | `cline + qwen3.6 + always-local + puzzles` | 15/15 = 100% | 0% | Local-only nails Exercism Python |
-| `aider + gemma4 + heuristic + refactors` (D1/D5) | 23/24 = 96% [88, 100] | 34% | v1.3 marquee — replicates |
+| `aider + gemma4 + heuristic + refactors` (D1/D5) | 23/24 = 96% [88, 100] | 34% | v1.3 marquee, replicates |
 | `aider + gemma4 + heuristic + refactors` (D6 hard tasks) | 7/12 = 58% | 68% | Where heuristic routing breaks on harder tasks |
 | `aider + gemma4 / cline + qwen3.6 + always-cloud` (D6 hard tasks) | 12/12 = 100% | 100% | gpt-5.5 ceiling on D6 |
 
@@ -38,14 +38,13 @@ real-world walkthrough of every refactor we measured live in
 
 ## Why this exists
 
-LLM coding agents are getting good, fast — and the cost difference between a
-frontier cloud model and a 30B local model is now ~100×. The interesting
-question is no longer *can the cloud do it?* but *which tasks can stay on my
-laptop?* This repo measures the answer end-to-end:
+LLM coding agents got good, fast. The cost gap between a frontier cloud model
+and a 30B local model is now ~100×. The useful question is which tasks can stay
+on your laptop. This repo measures the answer end to end:
 
-- **Same agent, same task, different routes** → quality and cost are directly comparable.
+- **Same agent, same task, different routes** → quality and cost are comparable.
 - **Per-row tokens, not per-row cost** → pricing scenarios swap in at analysis time.
-- **Bootstrap 95% CIs per cell** → "X beats Y" claims are statistically defensible.
+- **Bootstrap 95% CIs per cell** → "X beats Y" claims rest on the intervals.
 - **One laptop, no cluster** → results are reproducible from a clean clone.
 
 ## Quickstart
@@ -84,7 +83,7 @@ cp .env.example .env
 
 This builds the Python sandbox Docker image, installs the `cline` and
 `opencode` CLIs via npm if missing, and runs a quick health check. It
-is idempotent — safe to re-run.
+is idempotent, so you can re-run it any time.
 
 ### 4. Smoke test (cloud only, ~30 seconds)
 
@@ -112,8 +111,8 @@ ollama pull gemma4:31b                                # ~18 GB
 ./bench analyze results/runs/v1.4-canonical-gemma4
 ```
 
-Expected wall-time on M4 Max 64 GB: ~10–15 hours. Expected cloud spend
-at gpt-5.5 list pricing: ~$30–50. Pause and resume any time:
+Expected wall-time on M4 Max 64 GB: 10 to 15 hours. Expected cloud spend
+at gpt-5.5 list pricing: $30 to $50. Pause and resume any time:
 
 ```bash
 ./bench pause      # frees the laptop, keeps Ollama warm
@@ -145,7 +144,7 @@ jq '.cells["refactors::cline::heuristic"].pass_rate' \
 ```
 
 Reference points on the same cell from the canonical sweeps: 96% (qwen3.6),
-92% (qwen3-coder), 96% (gemma4 — error-adjusted; 71% on the conservative
+92% (qwen3-coder), 96% (gemma4, error-adjusted; 71% on the conservative
 n=24 reading that counts cline-session errors as failures).
 
 ## What's in the box
@@ -165,13 +164,13 @@ decides, what each task class measures, and the result schema.
 
 ### What complexity are we measuring?
 
-Deliberately the **everyday tier** — single-function puzzles up to senior
-single-file builds (an LRU+TTL cache, a recursive-descent template engine). This
-is **not** the long-horizon frontier (e.g. [SWE-Marathon](https://www.swemarathon.org/):
-multi-hour, whole-repo tasks where even Opus 4.8 tops out ~26%). Real merged PRs
-(SWE-bench Verified) were measured in the MVP era; the v1.x adapter ships and the
-agentic sweep is v1.6 work. We scope to where the laptop-vs-cloud question
-actually bites.
+Deliberately the **everyday tier**: single-function puzzles up to senior
+single-file builds (an LRU+TTL cache, a recursive-descent template engine). The
+long-horizon frontier sits beyond it.
+[SWE-Marathon](https://www.swemarathon.org/) runs multi-hour, whole-repo tasks
+where Opus 4.8 tops out near 26%. We measured real merged PRs (SWE-bench
+Verified) in the MVP era; the v1.x adapter ships and the agentic sweep is v1.6
+work. We scope to where local-vs-cloud cost matters most.
 
 ![Where these tasks sit on the difficulty spectrum](./docs/images/complexity-spectrum.png)
 
@@ -199,15 +198,15 @@ actually bites.
 
 ./bench analyze results/runs/<sweep>/
     │
-    ├── aggregate.json     — per-cell medians + totals
-    ├── bootstrap_cis.json — 95% CIs on pass_rate / cost / cloud_fraction
-    ├── decision_matrix.md — Markdown table with "Recommended" column
-    └── charts/            — Pareto scatter + quality/cost heatmaps
+    ├── aggregate.json     # per-cell medians + totals
+    ├── bootstrap_cis.json # 95% CIs on pass_rate / cost / cloud_fraction
+    ├── decision_matrix.md # Markdown table with "Recommended" column
+    └── charts/            # Pareto scatter + quality/cost heatmaps
 ```
 
 Each agent is a thin wrapper around an externally-maintained tool. This
-repo owns the **routing, the scoring, the analysis, and the result schema**
-— it doesn't try to be a coding agent.
+repo owns the **routing, the scoring, the analysis, and the result schema**.
+It does not try to be a coding agent.
 
 ## Picking a config for real work
 
@@ -220,13 +219,13 @@ Distilled from the v1.5 leaderboard:
 | **Best refactor quality + lowest cost** | `cline + qwen3.6 + cascade` | 100% on D1/D5 refactors at 8% cloud, $0.022/task |
 | **Zero cloud spend, still serious quality** | `cline + qwen3.6 + always-local` | 100% on puzzles, 67% on D6 hard tasks, $0 cloud |
 | **Maximum quality, cost is no object** | Any agent + `always-cloud` (gpt-5.5) | 100% across every cell we measured |
-| **You know the task is genuinely hard** | Force `!cloud` on the model field | Cascade's router can't always tell hard from easy |
+| **You know the task is hard** | Force `!cloud` on the model field | Cascade's router cannot always tell hard from easy |
 
 What to **avoid**:
 
-- `opencode + qwen models` — opencode's prompting is gemma4-shaped.
-- `aider + heuristic` on D6-class tasks — only 58% pass while the router still sends 68% of tokens to the cloud (scores less, spends more).
-- `mini-swe-agent + any local model` — not yet competitive with `aider` or `cline` on this benchmark.
+- `opencode + qwen models`: opencode's prompting fits gemma4, not the qwen variants.
+- `aider + heuristic` on D6-class tasks: 58% pass while the router still sends 68% of tokens to the cloud (scores less, spends more).
+- `mini-swe-agent + any local model`: it trails `aider` and `cline` on this benchmark.
 
 ## Sweep lifecycle (long sweeps)
 
@@ -295,7 +294,7 @@ hybrid-coding-eval/
 │   └── router/corpus.json            ← embedding-kNN labelled training data
 │
 ├── tests/                        ← pytest (CI runs all, 120 fast tests)
-├── results/                      ← v1.0–v1.3 datasets tracked; v1.4+ as release tarballs
+├── results/                      ← v1.0 to v1.3 datasets tracked; v1.4+ as release tarballs
 └── docs/
     ├── HYBRID_ROUTING_DESIGN.md  ← THE design doc (strategies + agents + methodology)
     └── release-notes/v1.*.md     ← per-release findings
@@ -305,9 +304,9 @@ hybrid-coding-eval/
 
 Every row carries `task_id`, `route`, `router_strategy`, `seed`,
 `cloud_model_id`, `local_model_id`, `config_sha`, `hardware_profile_ref`.
-Costs are derived from `tokens × pinned pricing` at analyze-time —
-pricing edits ripple through `./bench analyze` without re-running
-inference. The pricing table SHA256 is logged with each import.
+Costs are derived from `tokens × pinned pricing` at analyze-time, so a pricing
+edit flows through `./bench analyze` without re-running inference. The harness
+logs the pricing table SHA256 with each import.
 
 The Node router and the Python harness both read the same
 `configs/pricing/pricing_tables.json` and compute identical costs
@@ -318,9 +317,8 @@ The Node router and the Python harness both read the same
 **Code, datasets, charts, and docs prose are all MIT-licensed.** See
 [`LICENSE`](./LICENSE).
 
-If you use this benchmark or its data in your own work, **a citation
-would be really appreciated** — it's how a small research project gets
-seen:
+If you use this benchmark or its data in your own work, please cite it. A
+citation is how a small research project gets seen:
 
 ```bibtex
 @misc{monga2026hybridcodingeval,
@@ -340,17 +338,17 @@ Third-party tools driven by this harness:
 - [opencode](https://github.com/RunanywhereAI/opencode-1) (MIT)
 - [cline](https://github.com/cline/cline) (Apache 2.0)
 - [mini-swe-agent](https://github.com/princeton-nlp/mini-swe-agent) (MIT)
-- [Aider polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark) — source of the 5 puzzle tasks (MIT, derived from [Exercism](https://exercism.org/))
+- [Aider polyglot benchmark](https://github.com/Aider-AI/polyglot-benchmark): source of the 5 puzzle tasks (MIT, derived from [Exercism](https://exercism.org/))
 
 ## Read next
 
-1. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md) — clean-clone → green-charts → compare-against-canonical, step by step.
-2. [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md) — the single canonical design doc (strategies, agents, schema, methodology).
-3. [`docs/release-notes/v1.5.0.md`](./docs/release-notes/v1.5.0.md) — most recent findings (D6 hard-task stress test).
-4. [`docs/release-notes/v1.4.1.md`](./docs/release-notes/v1.4.1.md) — the canonical 3-model leaderboard.
-5. [`AGENTS.md`](./AGENTS.md) — folder-by-folder map for AI coding agents reading the codebase.
-6. [`CONTRIBUTING.md`](./CONTRIBUTING.md) — add a model, agent, strategy, or task class.
-7. [`SECURITY.md`](./SECURITY.md) — vulnerability-disclosure channel.
+1. [`docs/REPRODUCING.md`](./docs/REPRODUCING.md): clean-clone to green-charts to compare-against-canonical, step by step.
+2. [`docs/HYBRID_ROUTING_DESIGN.md`](./docs/HYBRID_ROUTING_DESIGN.md): the single canonical design doc (strategies, agents, schema, methodology).
+3. [`docs/release-notes/v1.5.0.md`](./docs/release-notes/v1.5.0.md): the most recent findings (D6 hard-task stress test).
+4. [`docs/release-notes/v1.4.1.md`](./docs/release-notes/v1.4.1.md): the canonical 3-model leaderboard.
+5. [`AGENTS.md`](./AGENTS.md): folder-by-folder map for AI coding agents reading the codebase.
+6. [`CONTRIBUTING.md`](./CONTRIBUTING.md): how to add a model, agent, strategy, or task class.
+7. [`SECURITY.md`](./SECURITY.md): the vulnerability-disclosure channel.
 
 Questions, reproduction issues, or new-model requests? File an issue:
 <https://github.com/RunanywhereAI/hybrid-coding-eval/issues>
