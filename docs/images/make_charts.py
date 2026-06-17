@@ -200,44 +200,61 @@ print("architecture.png")
 # ===========================================================================
 # 5 - Complexity spectrum: where these tasks sit vs the frontier.
 # ===========================================================================
-fig, ax = plt.subplots(figsize=(12.0, 6.8))
-fig.subplots_adjust(top=0.78, bottom=0.04, left=0.02, right=0.98)
-ax.set_xlim(0,12); ax.set_ylim(0,6.6); ax.axis("off")
+fig, ax = plt.subplots(figsize=(13.0, 6.6))
+fig.subplots_adjust(top=0.80, bottom=0.05, left=0.015, right=0.985)
+ax.set_xlim(0, 13); ax.set_ylim(0, 6.6); ax.axis("off")
 
-# "measured here" band vs "frontier (out of scope)" band
-ax.add_patch(FancyBboxPatch((0.2,1.15),7.55,4.05,boxstyle="round,pad=0.02,rounding_size=0.1",
+DEEP = "#5B2BC4"; AMBER = "#C97A2B"; RED = "#B23A48"
+
+# two zones: what we measure (left) vs beyond current sweeps (right)
+ax.add_patch(FancyBboxPatch((0.30, 1.15), 8.05, 4.15, boxstyle="round,pad=0.02,rounding_size=0.1",
              fc=PANEL, ec="#D7DEE5", lw=1.2, zorder=0))
-ax.add_patch(FancyBboxPatch((7.95,1.15),3.85,4.05,boxstyle="round,pad=0.02,rounding_size=0.1",
+ax.add_patch(FancyBboxPatch((8.65, 1.15), 4.05, 4.15, boxstyle="round,pad=0.02,rounding_size=0.1",
              fc="#FBF1F1", ec="#EBD3D3", lw=1.2, zorder=0))
-ax.text(3.97,5.0,"WHAT THIS BENCHMARK MEASURES",fontsize=11,fontweight="bold",color=LOCAL,ha="center")
-ax.text(9.87,5.0,"REAL-WORLD → FRONTIER  ·  beyond current sweeps",fontsize=10.5,fontweight="bold",color="#B23A48",ha="center")
+ax.text(0.55, 5.08, "WHAT THIS BENCHMARK MEASURES", ha="left", fontsize=10.5, fontweight="bold", color=LOCAL)
+ax.text(8.90, 5.08, "BEYOND CURRENT SWEEPS", ha="left", fontsize=10.5, fontweight="bold", color=RED)
 
-# difficulty arrow
-ax.add_patch(FancyArrowPatch((0.5,0.78),(11.5,0.78),arrowstyle="-|>",mutation_scale=22,color=MUTED,lw=2))
-ax.text(0.5,0.36,"seconds to minutes",fontsize=9.5,color=MUTED)
-ax.text(6.0,0.36,"30 min to 1 hr (single file)",fontsize=9.5,color=MUTED,ha="center")
-ax.text(11.5,0.36,"hours to days (whole repos)",fontsize=9.5,color=MUTED,ha="right")
-ax.text(6.0,0.04,"human effort per task  →",fontsize=10,color=INK,ha="center",fontweight="bold")
-
-def card(x, w, title, sub, color, y=1.5, h=3.1):
-    ax.add_patch(FancyBboxPatch((x,y),w,h,boxstyle="round,pad=0.03,rounding_size=0.1",
+def card(x, w, title, body, color, body_fs=9.3):
+    hh = 0.58
+    ax.add_patch(FancyBboxPatch((x, 1.5), w, 3.2, boxstyle="round,pad=0.03,rounding_size=0.09",
                  fc="white", ec=color, lw=2.2, zorder=2))
-    ax.add_patch(FancyBboxPatch((x,y+h-0.62),w,0.62,boxstyle="round,pad=0.03,rounding_size=0.1",
+    ax.add_patch(FancyBboxPatch((x, 1.5 + 3.2 - hh), w, hh, boxstyle="round,pad=0.03,rounding_size=0.09",
                  fc=color, ec=color, lw=0, zorder=3))
-    ax.text(x+w/2, y+h-0.31, title, ha="center", va="center", color="white",
-            fontsize=11.5, fontweight="bold", zorder=4)
-    ax.text(x+w/2, y+(h-0.62)/2, sub, ha="center", va="center", color=INK,
-            fontsize=9.6, zorder=4, linespacing=1.45)
+    ax.text(x + w/2, 1.5 + 3.2 - hh/2, title, ha="center", va="center", color="white",
+            fontsize=11, fontweight="bold", zorder=4)
+    ax.text(x + w/2, 1.5 + (3.2 - hh)/2, body, ha="center", va="center", color=INK,
+            fontsize=body_fs, zorder=4, linespacing=1.5)
 
-card(0.45, 1.7, "Puzzles", "Exercism Python\n5 tasks\nsingle function\n~30 to 100 LOC\n\njunior", LOCAL, h=3.1)
-card(2.35, 1.7, "Everyday tasks\nD1 / D5", "feature-adds +\nscripts\n8 tasks\nsingle file,\ntiny fixture repo\n\nmid-level", HYBRID, h=3.1)
-card(4.25, 3.35, "Hard builds, D6   ◀ ceiling here", "LRU+TTL cache · token bucket · toposort · template engine\n4 tasks · 55 to 273 LOC each · 80 pytest tests · corner-case heavy\n\nsenior · single file", "#5B2BC4", h=3.1)
-card(8.15, 1.55, "Real PRs", "SWE-bench\nVerified\nreal merged PRs\nrepo-scale\n\nMVP-era /\nv1.6 roadmap", "#C97A2B", h=3.1)
-card(9.95, 1.65, "Long-horizon", "SWE-bench Pro /\nSWE-Marathon\nmulti-hour,\nfull repos\nfrontier <26%\n(Opus 4.8)", "#B23A48", h=3.1)
+# left zone: 3 cards
+card(0.55, 2.45, "Puzzles",
+     "Exercism Python\n5 tasks, single function\n~30 to 100 LOC\n\nJUNIOR", LOCAL)
+card(3.15, 2.45, "Everyday tasks",
+     "D1 feature-adds +\nD5 scripts\n8 tasks, single file\ntiny fixture repo\n\nMID-LEVEL", HYBRID)
+card(5.75, 2.45, "Hard builds (D6)",
+     "4 single-file builds\nLRU+TTL cache, toposort,\ntoken-bucket, template\n80 pytest tests\n\nSENIOR", DEEP, body_fs=9.0)
+# right zone: 2 cards
+card(8.90, 1.75, "Real PRs",
+     "SWE-bench\nVerified\nreal merged PRs\nrepo-scale\n\nMVP-era /\nv1.6 roadmap", AMBER, body_fs=9.0)
+card(10.85, 1.75, "Long-horizon",
+     "SWE-bench Pro,\nSWE-Marathon\nmulti-hour,\nfull repos\nfrontier ~26%\n(Opus 4.8)", RED, body_fs=9.0)
+
+# "ceiling" marker over the hard-builds card
+ax.annotate("the ceiling we test", xy=(6.975, 4.72), xytext=(6.975, 5.02), ha="center",
+            fontsize=8.6, fontweight="bold", color=DEEP,
+            arrowprops=dict(arrowstyle="-|>", color=DEEP, lw=1.3))
+
+# difficulty axis
+ax.add_patch(FancyArrowPatch((0.55, 0.78), (12.45, 0.78), arrowstyle="-|>", mutation_scale=22, color=MUTED, lw=2))
+ax.text(0.55, 0.40, "seconds to minutes", ha="left", fontsize=9.3, color=MUTED)
+ax.text(5.4, 0.40, "minutes to ~1 hour, single file", ha="center", fontsize=9.3, color=MUTED)
+ax.text(12.45, 0.40, "hours to days, whole repos", ha="right", fontsize=9.3, color=MUTED)
+ax.text(6.5, 0.06, "human effort per task  →", ha="center", fontsize=10, color=INK, fontweight="bold")
 
 titled(fig, "What complexity are we talking about?",
        "Deliberately the everyday tier: the bread-and-butter tasks that dominate a workday, not the multi-hour frontier.")
-fig.text(0.012,0.02,"Frontier figure: Abundant AI, SWE-Marathon (2026): 20 long-horizon tasks, top model ~26%.   "+SRC,
+fig.text(0.015, 0.015,
+         "Frontier figure: SWE-Marathon (2026), 20 long-horizon tasks, top model ~26%.   "
+         "github.com/RunanywhereAI/hybrid-arena",
          fontsize=8.4, color=FAINT)
 fig.savefig(f"{OUT}/complexity-spectrum.png", dpi=DPI); plt.close(fig)
 print("complexity-spectrum.png")

@@ -121,8 +121,8 @@ at gpt-5.5 list pricing: $30 to $50. Pause and resume any time:
 ./arena status     # PID + row count + RUNNING/PAUSED
 ```
 
-When it finishes, compare your numbers against the canonical v1.5.0
-dataset (`gh release download v1.5.0 -p results-v1.5.0.tar.gz`).
+When it finishes, compare your numbers against the canonical dataset
+(`gh release download v1.6.0 -p results-v1.6.0.tar.gz`).
 
 ### Benchmark a new model
 
@@ -322,14 +322,14 @@ If you use this benchmark or its data in your own work, please cite it. A
 citation is how a small research project gets seen:
 
 ```bibtex
-@misc{monga2026hybridcodingeval,
+@misc{monga2026hybridarena,
   author       = {Monga, Sanchit and contributors},
-  title        = {hybrid-arena: reproducible cost/latency/quality
+  title        = {Hybrid Coding Arena: reproducible cost/latency/quality
                   benchmark for local vs cloud vs hybrid LLM routing on
                   coding tasks},
   year         = {2026},
   howpublished = {\url{https://github.com/RunanywhereAI/hybrid-arena}},
-  note         = {Version 1.5.1}
+  note         = {Version 1.6.0}
 }
 ```
 
