@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-06-16
+
+**Rebrand to Hybrid Coding Arena.** Same benchmark, methodology, and dataset (1,704 rows); new name, from RunAnywhere.
+
+### Changed
+
+- Project renamed `hybrid-coding-eval` to **Hybrid Coding Arena**.
+- Python package `hybrid_coding_eval` renamed to `hybrid_arena` (all imports updated).
+- Distribution and repo slug renamed to `hybrid-arena` (the old GitHub URL redirects).
+- CLI command renamed `bench` to `arena` (for example `arena sweep`, `arena analyze`).
+- Headline chart redesigned so pass-rate (the bar) and cloud usage (a separate labeled row) read as two distinct metrics.
+- Release workflow now skips draft creation when a release for the tag already exists.
+
+### Unchanged
+
+- The dataset, scoring, routing strategies, and all published numbers. `results-v1.6.0.tar.gz` is byte-identical to v1.5.0/v1.5.1.
+
 ## [1.5.1] — 2026-05-27
 
 **Open-source polish release** — addresses every audit finding from the

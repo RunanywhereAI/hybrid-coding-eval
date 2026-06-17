@@ -67,6 +67,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists, skipping draft creation."
+            exit 0
+          fi
           gh release create "$TAG" \
             --draft \
             --title "$TAG" \
