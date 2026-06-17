@@ -2,7 +2,7 @@
   "$defs": {
     "BenchmarkConfig": {
       "additionalProperties": false,
-      "description": "Which task classes × agents × how many tasks.\n\nTwo user-facing axes:\n\n* ``task_classes`` — high-level work shapes (``puzzles``,\n  ``refactors``, ``real-prs``). Each maps to one task-adapter inside\n  :data:`hybrid_coding_eval.core.experiment.CATEGORY_SOURCES`.\n* ``agents`` — which coding agents to sweep (``aider``, ``opencode``,\n  ``mini-swe-agent``, ``cline``). Each resolves to one runner module\n  under ``src/hybrid_coding_eval/agents/``.",
+      "description": "Which task classes × agents × how many tasks.\n\nTwo user-facing axes:\n\n* ``task_classes`` — high-level work shapes (``puzzles``,\n  ``refactors``, ``real-prs``). Each maps to one task-adapter inside\n  :data:`hybrid_arena.core.experiment.CATEGORY_SOURCES`.\n* ``agents`` — which coding agents to sweep (``aider``, ``opencode``,\n  ``mini-swe-agent``, ``cline``). Each resolves to one runner module\n  under ``src/hybrid_arena/agents/``.",
       "properties": {
         "task_classes": {
           "default": [

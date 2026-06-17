@@ -31,8 +31,8 @@ pulled local model are needed once you run a real hybrid sweep.
 ## 2. Clone, install, configure
 
 ```bash
-git clone https://github.com/RunanywhereAI/hybrid-coding-eval
-cd hybrid-coding-eval
+git clone https://github.com/RunanywhereAI/hybrid-arena
+cd hybrid-arena
 
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[dev,agents]"
@@ -53,7 +53,7 @@ git checkout v1.5.1     # or v1.5.0 / v1.4.1 — matches that release's dataset
 ## 3. One-time setup
 
 ```bash
-./bench setup
+./arena setup
 ```
 
 Idempotent — safe to re-run. It builds the functional-scoring Docker image
@@ -68,11 +68,11 @@ if missing, clones the `opencode` fork into `vendor/` (opt-in via
 No local model required — this proves the harness is wired up correctly.
 
 ```bash
-./bench sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
-./bench analyze results/runs/v1.4-smoke
+./arena sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
+./arena analyze results/runs/v1.4-smoke
 ```
 
-If `bench analyze` writes a `bootstrap_cis.json` and a chart, you're good.
+If `arena analyze` writes a `bootstrap_cis.json` and a chart, you're good.
 
 ---
 
@@ -82,11 +82,11 @@ Pull a local model, then run the canonical 4-strategy matrix:
 
 ```bash
 ollama pull gemma4:31b                                # ~18 GB
-./bench sweep \
+./arena sweep \
     --config configs/v1.4-canonical-gemma4.yaml \
     --strategies always-cloud,always-local,heuristic,cascade \
     --seeds 42,7,13
-./bench analyze results/runs/v1.4-canonical-gemma4
+./arena analyze results/runs/v1.4-canonical-gemma4
 ```
 
 Other canonical configs (same matrix, different local model):
@@ -107,13 +107,13 @@ The orchestrator is crash-resumable — `raw.jsonl` is append-only, so a crash
 loses at most one row.
 
 ```bash
-./bench start  --config configs/v1.4-canonical-qwen3.6.yaml \
+./arena start  --config configs/v1.4-canonical-qwen3.6.yaml \
                --strategies always-cloud,always-local,heuristic,cascade \
                --seeds 42,7,13          # detaches, returns immediately
-./bench status                           # PID + row count + RUNNING/PAUSED
-./bench pause                            # frees the laptop, keeps Ollama warm
-./bench resume                           # picks up at the next un-written row
-./bench stop                             # also kills Ollama (~19 GB freed)
+./arena status                           # PID + row count + RUNNING/PAUSED
+./arena pause                            # frees the laptop, keeps Ollama warm
+./arena resume                           # picks up at the next un-written row
+./arena stop                             # also kills Ollama (~19 GB freed)
 ```
 
 State lives at `/tmp/hcev-sweep.json` and survives reboots until `--clear-state`.
@@ -141,11 +141,11 @@ Reference points on the `refactors::*::heuristic` cell from the canonical sweeps
 
 ```bash
 ollama pull <new-model>
-./bench sweep --config configs/v1.4-canonical-gemma4.yaml \
+./arena sweep --config configs/v1.4-canonical-gemma4.yaml \
     --set models.local=<new-model> \
     --set out_dir=results/runs/v1.4-<new-model> \
     --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench analyze results/runs/v1.4-<new-model>
+./arena analyze results/runs/v1.4-<new-model>
 ```
 
 `--set key.path=value` overrides any config field for a one-shot run without
@@ -159,7 +159,7 @@ Cost is never stored — it's derived. To see the whole dataset under a differen
 model's pricing, just re-analyze:
 
 ```bash
-./bench token-budget results/runs/<your-sweep>   # token-first matrix, all scenarios
+./arena token-budget results/runs/<your-sweep>   # token-first matrix, all scenarios
 ```
 
 Pricing lives in `configs/pricing/pricing_tables.json` (SHA256-pinned, shared by
@@ -172,10 +172,10 @@ they compute identical costs).
 
 | Symptom | Fix |
 | --- | --- |
-| `bench analyze` import errors on a fresh clone | Ensure you installed with `.[dev]` (matplotlib/numpy are runtime deps). |
+| `arena analyze` import errors on a fresh clone | Ensure you installed with `.[dev]` (matplotlib/numpy are runtime deps). |
 | Router won't start | Check `.env` has a valid key; the router binds `127.0.0.1:8787` only. Health: `curl -s 127.0.0.1:8787/healthz`. |
 | Local calls hang or stream forever | The v1.4.1 guards cap local calls at 4096 `num_predict` / 180 s. Override via `ROUTER_LOCAL_*` env vars if benchmarking an unusual model. |
 | Docker scorer skipped | Functional tests `skip` cleanly if Docker is unavailable; install/start Docker to score puzzles + refactors. |
 
 Found a number that doesn't reproduce? That's a bug worth filing — open an issue
-with your `env-manifest.json` (`./bench env-detect`) attached.
+with your `env-manifest.json` (`./arena env-detect`) attached.

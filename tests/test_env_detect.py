@@ -1,4 +1,4 @@
-"""Tests for ``hybrid_coding_eval.cli.env_detect``.
+"""Tests for ``hybrid_arena.cli.env_detect``.
 
 Covers:
 
@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 from unittest import mock
 
-from hybrid_coding_eval.cli import env_detect as ED
+from hybrid_arena.cli import env_detect as ED
 
 # ---------------------------------------------------------------------------
 # Expected schema

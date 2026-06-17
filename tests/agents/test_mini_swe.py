@@ -1,4 +1,4 @@
-"""Smoke tests for :mod:`hybrid_coding_eval.agents.mini_swe`.
+"""Smoke tests for :mod:`hybrid_arena.agents.mini_swe`.
 
 These tests verify that the module loads cleanly and exposes the
 expected interface — no live ``mini-extra`` CLI invocation is
@@ -22,7 +22,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # Skip the entire module if mini-swe-agent isn't installed. CI typically
 # omits it because it's not in the base `pip install -e ".[dev]"`; the
 # `agents` optional-deps install (`pip install -e ".[agents]"`) adds it,
-# and `./bench setup` installs it on first run.
+# and `./arena setup` installs it on first run.
 pytest.importorskip("minisweagent")
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -30,7 +30,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 def test_mini_swe_agent_module_imports() -> None:
     """The module loads cleanly and exposes ``run`` + ``ROUTE``."""
-    from hybrid_coding_eval.agents import mini_swe
+    from hybrid_arena.agents import mini_swe
 
     assert mini_swe.ROUTE == "mini-swe-agent"
     assert callable(mini_swe.run)
@@ -50,8 +50,8 @@ def test_mini_swe_agent_module_imports() -> None:
 
 def test_runner_dispatch_registers_mini_swe_agent() -> None:
     """The core experiment dispatch resolves 'mini-swe-agent' to our run()."""
-    from hybrid_coding_eval.agents import mini_swe
-    from hybrid_coding_eval.core.experiment import _runner_for
+    from hybrid_arena.agents import mini_swe
+    from hybrid_arena.core.experiment import _runner_for
 
     assert _runner_for("mini-swe-agent") is mini_swe.run
 
@@ -64,7 +64,7 @@ def test_default_swebench_yaml_resolves() -> None:
     package layout changed — the runner would fail on the first
     ``-c <default>`` flag of every invocation.
     """
-    from hybrid_coding_eval.agents import mini_swe as mini_swe_runner
+    from hybrid_arena.agents import mini_swe as mini_swe_runner
 
     p = mini_swe_runner._default_swebench_yaml()
     assert p.exists(), f"package swebench.yaml not found at {p}"
@@ -82,7 +82,7 @@ def test_strategy_yaml_is_well_formed() -> None:
     """
     import yaml
 
-    from hybrid_coding_eval.agents import mini_swe as mini_swe_runner
+    from hybrid_arena.agents import mini_swe as mini_swe_runner
 
     txt = mini_swe_runner._strategy_yaml(
         api_base="http://127.0.0.1:8787/v1",
@@ -102,7 +102,7 @@ def test_extract_diff_from_trajectory_empty_when_missing(tmp_path: Path) -> None
     """The trajectory parser returns "" when the trajectory file is
     absent (the agent never produced one — e.g., it crashed before
     writing any output)."""
-    from hybrid_coding_eval.agents import mini_swe as mini_swe_runner
+    from hybrid_arena.agents import mini_swe as mini_swe_runner
 
     missing = tmp_path / "nope.json"
     assert mini_swe_runner._extract_diff_from_trajectory(missing) == ""
@@ -112,7 +112,7 @@ def test_extract_diff_from_trajectory_v2_submission(tmp_path: Path) -> None:
     """Trajectory parser reads ``info.submission`` (mini-swe-agent v2 schema)."""
     import json
 
-    from hybrid_coding_eval.agents import mini_swe as mini_swe_runner
+    from hybrid_arena.agents import mini_swe as mini_swe_runner
 
     traj = tmp_path / "trajectory.json"
     traj.write_text(
@@ -138,7 +138,7 @@ def test_run_missing_mini_extra_returns_error_row(
     log the row and move on. Mirrors the graceful-fallback pattern in
     the cline runner.
     """
-    from hybrid_coding_eval.agents import mini_swe
+    from hybrid_arena.agents import mini_swe
 
     class _FakeTask:
         id = "swebench-verified/django__django-11163"

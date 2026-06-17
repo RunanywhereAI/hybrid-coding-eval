@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hybrid-coding-eval"
-version = "1.5.1"
+name = "hybrid-arena"
+version = "1.6.0"
 description = "Reproducible cost/latency/quality benchmark comparing local vs cloud vs hybrid LLM routing for coding tasks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,7 +29,7 @@ dev = [
     "ruff>=0.5,<1",
 ]
 # Python-side coding agents (mini-swe-agent + aider). opencode and cline
-# ship as separate Node/npm CLIs and are installed by ``bench setup``.
+# ship as separate Node/npm CLIs and are installed by ``arena setup``.
 # Install with: ``pip install -e ".[agents]"``.
 agents = [
     "mini-swe-agent>=2.2,<3",
@@ -37,11 +37,11 @@ agents = [
 ]
 
 [project.scripts]
-bench = "hybrid_coding_eval.cli.bench:main"
+arena = "hybrid_arena.cli.bench:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["hybrid_coding_eval*"]
+include = ["hybrid_arena*"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -53,9 +53,9 @@ target-version = "py311"
 line-length = 100
 extend-exclude = [
     "vendor",
-    "src/hybrid_coding_eval/tasks/refactors/fixtures",
-    "src/hybrid_coding_eval/tasks/puzzles/fixtures",
-    "src/hybrid_coding_eval/tasks/real_prs/fixtures",
+    "src/hybrid_arena/tasks/refactors/fixtures",
+    "src/hybrid_arena/tasks/puzzles/fixtures",
+    "src/hybrid_arena/tasks/real_prs/fixtures",
 ]
 
 [tool.ruff.lint]

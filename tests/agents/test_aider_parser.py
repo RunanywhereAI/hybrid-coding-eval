@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from hybrid_coding_eval.agents.aider import _parse_pytest_summary
+from hybrid_arena.agents.aider import _parse_pytest_summary
 
 
 @pytest.mark.parametrize(

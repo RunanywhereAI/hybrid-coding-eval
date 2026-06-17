@@ -61,6 +61,6 @@ jobs:
       - name: Build the functional-scoring sandbox image
         run: |
           docker build \
-            -f src/hybrid_coding_eval/scorers/Dockerfile.functional_python \
+            -f src/hybrid_arena/scorers/Dockerfile.functional_python \
             -t hybrid-eval-python:ci \
             .

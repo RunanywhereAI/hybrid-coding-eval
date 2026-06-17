@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Sanchit Monga and hybrid-coding-eval contributors
+Copyright (c) 2026 Sanchit Monga and hybrid-arena contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,12 @@ SOFTWARE.
 ---
 
 This MIT license applies to **all** content in this repository — the
-harness code (`src/`, `router/`, `tests/`, `configs/`, the `bench`
+harness code (`src/`, `router/`, `tests/`, `configs/`, the `arena`
 dispatcher), the result datasets (`results/`), the charts and docs
 prose (`docs/`).
 
 Upstream benchmark datasets referenced by adapters under
-`src/hybrid_coding_eval/tasks/` retain their original upstream licenses
+`src/hybrid_arena/tasks/` retain their original upstream licenses
 (Aider Polyglot / Exercism Python is MIT, SWE-bench Verified is
 CC-BY-4.0). Vendored third-party code under `vendor/` retains the
 license shipped with it — see `vendor/README.md`.

@@ -28,7 +28,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 def test_python_loader_resolves_to_configs_path():
     """Python loader must use ``configs/pricing/pricing_tables.json``."""
-    from hybrid_coding_eval.core.pricing import PRICING_META  # noqa: E402
+    from hybrid_arena.core.pricing import PRICING_META  # noqa: E402
 
     path = Path(PRICING_META["path"])
     assert path.is_file(), f"path reported by loader does not exist: {path}"
@@ -40,7 +40,7 @@ def test_python_loader_resolves_to_configs_path():
 
 
 def test_python_loader_sha_matches_file_sha():
-    from hybrid_coding_eval.core.pricing import PRICING_META  # noqa: E402
+    from hybrid_arena.core.pricing import PRICING_META  # noqa: E402
 
     bytes_on_disk = Path(PRICING_META["path"]).read_bytes()
     disk_sha = hashlib.sha256(bytes_on_disk).hexdigest()
@@ -53,7 +53,7 @@ def test_node_loader_sha_matches_python_loader_sha():
 
     Assert the SHA256 it computed matches the Python side's SHA256.
     """
-    from hybrid_coding_eval.core.pricing import PRICING_META as PY_META  # noqa: E402
+    from hybrid_arena.core.pricing import PRICING_META as PY_META  # noqa: E402
 
     shim = (
         "import { PRICING_META } from './router/pricing.mjs';\n"

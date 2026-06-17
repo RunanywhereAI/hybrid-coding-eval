@@ -1,4 +1,4 @@
-# Contributing to hybrid-coding-eval
+# Contributing to hybrid-arena
 
 Thanks for your interest. This project is a **research artifact**, not a
 product, but contributions — especially new local models, new agents, and
@@ -13,19 +13,19 @@ data, and results.
 ## Environment setup
 
 ```bash
-git clone https://github.com/RunanywhereAI/hybrid-coding-eval
-cd hybrid-coding-eval
+git clone https://github.com/RunanywhereAI/hybrid-arena
+cd hybrid-arena
 
 python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install -e ".[dev]"
 
 cp .env.example .env                # add OPEN_AI_API_KEY
-./bench setup                       # builds Docker image, pulls aux models, installs aider + cline
+./arena setup                       # builds Docker image, pulls aux models, installs aider + cline
 ```
 
-`./bench setup` is idempotent — safe to re-run. After it succeeds,
-`./bench sweep --config configs/v1.4-smoke.yaml` runs a 1-task smoke sweep
+`./arena setup` is idempotent — safe to re-run. After it succeeds,
+`./arena sweep --config configs/v1.4-smoke.yaml` runs a 1-task smoke sweep
 end-to-end (cloud only — does not require a local ollama model).
 
 ## Running tests
@@ -52,12 +52,12 @@ The most common contribution; ~90 seconds for an Ollama model.
 
 ```bash
 ollama pull <new-model>
-./bench sweep \
+./arena sweep \
     --config configs/v1.4-canonical-gemma4.yaml \
     --set models.local=<new-model> \
     --set out_dir=results/runs/v1.4-<new-model> \
     --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench analyze results/runs/v1.4-<new-model>
+./arena analyze results/runs/v1.4-<new-model>
 ```
 
 The PR description should include:
@@ -72,16 +72,16 @@ is enough for a first PR.
 
 ## Adding a new agent
 
-1. Write `src/hybrid_coding_eval/agents/<name>.py` exposing
+1. Write `src/hybrid_arena/agents/<name>.py` exposing
    `run(task, *, proxy_url, ...) -> ResultRow`. Keep it ≤ 250 LOC; copy
    the style of an existing agent (e.g. `agents/mini_swe.py`).
 2. Add `<name>` to the `Agent` `Literal` in
-   `src/hybrid_coding_eval/core/config/schema.py`.
+   `src/hybrid_arena/core/config/schema.py`.
 3. Register it in `core/experiment.py:_runner_for(agent)` and in the
    `ROUTES` tuple.
 4. Add `tests/agents/test_<name>.py` covering: import, dispatch, and an
    error-row when the underlying subprocess fails.
-5. Regenerate the JSON schema: `./bench schema --out configs/schema.json`.
+5. Regenerate the JSON schema: `./arena schema --out configs/schema.json`.
 6. Update the agent table in `docs/HYBRID_ROUTING_DESIGN.md §3`.
 
 ## Adding a new routing strategy
@@ -89,15 +89,15 @@ is enough for a first PR.
 1. Add the strategy function in `router/strategies.mjs` and register it
    in `STRATEGY_REGISTRY` at the bottom of that file.
 2. Add the name to the `RouteStrategy` `Literal` in
-   `src/hybrid_coding_eval/core/config/schema.py`.
-3. Regenerate the JSON schema: `./bench schema --out configs/schema.json`.
+   `src/hybrid_arena/core/config/schema.py`.
+3. Regenerate the JSON schema: `./arena schema --out configs/schema.json`.
 4. Add a row to the strategy table in `docs/HYBRID_ROUTING_DESIGN.md §4`.
 5. Add a test under `tests/test_router_strategies.py` (or
    `router/tests/`).
 
 ## Adding a new task class
 
-1. Create `src/hybrid_coding_eval/tasks/<class>/` with an `adapter.py`
+1. Create `src/hybrid_arena/tasks/<class>/` with an `adapter.py`
    (loads tasks) and a `scorers.py` (scores a `ResultRow`).
 2. Register the class in `core/experiment.py:CATEGORY_SOURCES` and in
    the `TaskClass` `Literal` in `core/config/schema.py`.
@@ -114,14 +114,14 @@ is enough for a first PR.
 
 - **One logical change per PR.**
 - **Title format:** `<area>(<scope>): <imperative summary>` —
-  e.g. `feat(cli): bench setup subcommand`, `fix(scorer): handle empty stdout`.
+  e.g. `feat(cli): arena setup subcommand`, `fix(scorer): handle empty stdout`.
 - **Body:** what changed, why, and any reproducibility implications. Use
   the PR template (`.github/PULL_REQUEST_TEMPLATE.md`).
 
 ## Code style
 
 - **Python:** ruff with the repo's default config. Public functions in
-  `src/hybrid_coding_eval/core/` should have brief docstrings. Type hints
+  `src/hybrid_arena/core/` should have brief docstrings. Type hints
   encouraged.
 - **JavaScript (router):** plain Node, no transpilation; match existing style.
 - **No comments that just narrate code.** Comments should explain
@@ -134,7 +134,7 @@ is enough for a first PR.
   hardware_profile_ref)` in `raw.jsonl`.
 - **Cost honesty.** Costs are derived from `tokens × pinned pricing` at
   analyse-time. Pricing edits go in `configs/pricing/pricing_tables.json`
-  and ripple through `./bench analyze` without re-running inference.
+  and ripple through `./arena analyze` without re-running inference.
 - **No silent dependencies.** New runtime deps go in `pyproject.toml`
   with a pinned range and a one-line justification in the PR.
 - **Tests are sandboxed.** Functional scoring runs in Docker with

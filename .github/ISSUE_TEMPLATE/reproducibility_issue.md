@@ -23,7 +23,7 @@ labels: ["reproducibility"]
 - Docker version + functional-scoring image SHA (`docker image inspect hybrid-eval-python:latest --format '{{.Id}}'`):
 - Repo commit + tag:
 
-Attach your `env-manifest.json` — produced by `./bench env-detect` or auto-written into your sweep's output directory. It captures all of the above in one file.
+Attach your `env-manifest.json` — produced by `./arena env-detect` or auto-written into your sweep's output directory. It captures all of the above in one file.
 
 ## What you observed
 

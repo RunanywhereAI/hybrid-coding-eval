@@ -1,6 +1,6 @@
 # Security policy
 
-`hybrid-coding-eval` is a research artefact, not a hosted service.
+`hybrid-arena` is a research artefact, not a hosted service.
 That said, two surfaces have real security implications:
 
 1. The Node **router proxy** on `127.0.0.1:8787` forwards bearer-token
@@ -22,7 +22,7 @@ Instead, email the maintainer privately:
 > **security@runanywhere.ai** (preferred)
 >
 > or open a draft GitHub Security Advisory at
-> <https://github.com/RunanywhereAI/hybrid-coding-eval/security/advisories/new>
+> <https://github.com/RunanywhereAI/hybrid-arena/security/advisories/new>
 
 We aim to triage within **5 business days** and ship a fix within
 **30 days** for high-severity issues (CVSS ≥ 7.0). We'll credit you in

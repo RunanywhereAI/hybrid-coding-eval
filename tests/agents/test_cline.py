@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`hybrid_coding_eval.agents.cline`.
+"""Unit tests for :mod:`hybrid_arena.agents.cline`.
 
 These tests verify the module shape and the "cline binary missing"
 graceful-fallback path without spinning up the router proxy or
@@ -25,7 +25,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 def test_cline_module_imports() -> None:
     """The cline runner module is importable and exposes run() + ROUTE."""
-    from hybrid_coding_eval.agents import cline
+    from hybrid_arena.agents import cline
 
     assert cline.ROUTE == "cline"
     assert callable(cline.run)
@@ -43,8 +43,8 @@ def test_cline_module_imports() -> None:
 
 def test_runner_dispatch_registers_cline() -> None:
     """The core experiment dispatch resolves 'cline' to our run()."""
-    from hybrid_coding_eval.agents import cline
-    from hybrid_coding_eval.core.experiment import _runner_for
+    from hybrid_arena.agents import cline
+    from hybrid_arena.core.experiment import _runner_for
 
     assert _runner_for("cline") is cline.run
 
@@ -87,7 +87,7 @@ def test_cline_run_no_cline_installed_returns_error_row(
     The runner should catch FileNotFoundError from subprocess.run and
     return a ResultRow with ``error="cline_not_installed"``.
     """
-    from hybrid_coding_eval.agents import cline as cline_runner
+    from hybrid_arena.agents import cline as cline_runner
 
     # 1. Seed a minimal Exercism-style fixture so the copy step succeeds.
     fixture_dir = tmp_path / "fixture"
@@ -158,7 +158,7 @@ def test_cline_argv_matches_real_cli_shape(
     ``--non-interactive``, ``--yes``, ``--file``) — none of which exist
     in cline 3.0.9. This test exists to catch a regression.
     """
-    from hybrid_coding_eval.agents import cline as cline_runner
+    from hybrid_arena.agents import cline as cline_runner
 
     fixture_dir = tmp_path / "fixture"
     _seed_fixture(fixture_dir)
@@ -262,7 +262,7 @@ def test_cline_run_fixture_copy_failure_returns_error_row(tmp_path: Path) -> Non
     """When the task fixture is missing, run() returns a ``fixture_copy_failed``
     row rather than crashing. Mirrors the aider + opencode runners.
     """
-    from hybrid_coding_eval.agents import cline as cline_runner
+    from hybrid_arena.agents import cline as cline_runner
 
     class _BadTask:
         id = "exercism-python/does-not-exist"

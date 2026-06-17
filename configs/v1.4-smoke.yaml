@@ -2,7 +2,7 @@
 #
 # 1 task × 1 agent × 1 strategy × 1 seed × gemma4 = 1 row.
 # Used for fresh-clone verification: a stranger should be able to run
-#   ./bench sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
+#   ./arena sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
 # and see exactly 1 row land in results/runs/v1.4-smoke/always-cloud/seed-42/raw.jsonl.
 
 # yaml-language-server: $schema=./schema.json

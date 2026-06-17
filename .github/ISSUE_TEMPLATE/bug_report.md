@@ -19,7 +19,7 @@ labels: ["bug"]
 - Repo commit (`git rev-parse HEAD`):
 - Branch / tag (e.g. `v1.0.0`):
 
-Output of `./bench env-detect` (paste the JSON or attach the file) is the most reliable single source for the above:
+Output of `./arena env-detect` (paste the JSON or attach the file) is the most reliable single source for the above:
 
 ```json
 <paste env-manifest.json here, or attach>

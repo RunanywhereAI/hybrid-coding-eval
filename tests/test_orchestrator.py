@@ -1,4 +1,4 @@
-"""Tests for the orchestrator (``hybrid_coding_eval.cli.run`` + ``core.experiment``)."""
+"""Tests for the orchestrator (``hybrid_arena.cli.run`` + ``core.experiment``)."""
 
 from __future__ import annotations
 
@@ -11,21 +11,21 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from hybrid_coding_eval.core.experiment import (  # noqa: E402
+from hybrid_arena.core.experiment import (  # noqa: E402
     TaskPlan,
     build_task_plan,
     pair_already_done,
 )
-from hybrid_coding_eval.core.metrics import (  # noqa: E402
+from hybrid_arena.core.metrics import (  # noqa: E402
     Latency,
     Quality,
     ResultRow,
     Routing,
     TokenUsage,
 )
-from hybrid_coding_eval.core.results import append_row  # noqa: E402
+from hybrid_arena.core.results import append_row  # noqa: E402
 
-RUN_ARGS = [sys.executable, "-m", "hybrid_coding_eval.cli.run"]
+RUN_ARGS = [sys.executable, "-m", "hybrid_arena.cli.run"]
 
 
 def _make_row(
