@@ -35,7 +35,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from hybrid_coding_eval.core.pricing import (  # noqa: E402
+from hybrid_arena.core.pricing import (  # noqa: E402
     RATES_PER_M,
     compute_cost,
     normalise_model_id,

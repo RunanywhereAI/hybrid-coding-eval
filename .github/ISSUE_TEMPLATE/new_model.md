@@ -27,7 +27,7 @@ labels: ["model-request"]
 
 If you've already tried it, please attach:
 
-- The exact command you ran (typically `./bench sweep --config configs/v1.4-canonical-gemma4.yaml --set models.local=<model> --set out_dir=results/runs/<your-model>` with overrides)
+- The exact command you ran (typically `./arena sweep --config configs/v1.4-canonical-gemma4.yaml --set models.local=<model> --set out_dir=results/runs/<your-model>` with overrides)
 - `progress.log` from the run's output directory
 - Any errors hit
 

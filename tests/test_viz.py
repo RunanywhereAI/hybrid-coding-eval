@@ -10,17 +10,17 @@ from pathlib import Path
 
 import pytest
 
-from hybrid_coding_eval.analysis.aggregate import aggregate_results
-from hybrid_coding_eval.core.metrics import (
+from hybrid_arena.analysis.aggregate import aggregate_results
+from hybrid_arena.core.metrics import (
     Latency,
     Quality,
     ResultRow,
     Routing,
     TokenUsage,
 )
-from hybrid_coding_eval.core.results import append_row
-from hybrid_coding_eval.viz.cost_quality_pareto import plot_pareto
-from hybrid_coding_eval.viz.decision_heatmap import plot_heatmap
+from hybrid_arena.core.results import append_row
+from hybrid_arena.viz.cost_quality_pareto import plot_pareto
+from hybrid_arena.viz.decision_heatmap import plot_heatmap
 
 
 def _mk_row(

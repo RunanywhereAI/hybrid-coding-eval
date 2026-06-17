@@ -24,14 +24,14 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from hybrid_coding_eval.core.metrics import (  # noqa: E402
+from hybrid_arena.core.metrics import (  # noqa: E402
     Latency,
     Quality,
     ResultRow,
     Routing,
     TokenUsage,
 )
-from hybrid_coding_eval.core.results import aggregate_by, append_row, load_results  # noqa: E402
+from hybrid_arena.core.results import aggregate_by, append_row, load_results  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Helpers

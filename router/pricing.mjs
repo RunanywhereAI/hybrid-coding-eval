@@ -1,6 +1,6 @@
 // Authoritative per-million-token pricing for the cloud models the proxy can
 // route to. Tables live in ../configs/pricing/pricing_tables.json so the JS
-// proxy and the Python eval harness (src/hybrid_coding_eval/core/pricing.py)
+// proxy and the Python eval harness (src/hybrid_arena/core/pricing.py)
 // read the exact same numbers — cost-parity guaranteed by construction.
 //
 // Cost = (prompt_tokens - cached_tokens) * input

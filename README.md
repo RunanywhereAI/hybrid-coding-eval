@@ -1,12 +1,13 @@
-# hybrid-coding-eval
+# Hybrid Coding Arena
 
 > **Should this coding task run on my laptop, the cloud, or split between them?**
-> Answer it empirically, on your hardware, with reproducible numbers.
+> Local vs cloud vs hybrid LLM routing for coding agents. Answer it empirically,
+> on your hardware, with reproducible numbers. From RunAnywhere.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.1-success.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.0-success.svg)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![CI](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/RunanywhereAI/hybrid-coding-eval/actions/workflows/ci.yml)
+[![CI](https://github.com/RunanywhereAI/hybrid-arena/actions/workflows/ci.yml/badge.svg)](https://github.com/RunanywhereAI/hybrid-arena/actions/workflows/ci.yml)
 
 A reproducible benchmark harness that measures four coding agents
 (`aider`, `opencode`, `mini-swe-agent`, `cline`) across eight routing
@@ -65,8 +66,8 @@ Five minutes to a green smoke run. About an hour to a full canonical sweep.
 ### 2. Clone, install, and configure
 
 ```bash
-git clone https://github.com/RunanywhereAI/hybrid-coding-eval
-cd hybrid-coding-eval
+git clone https://github.com/RunanywhereAI/hybrid-arena
+cd hybrid-arena
 
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[dev,agents]"
@@ -78,7 +79,7 @@ cp .env.example .env
 ### 3. One-time setup (Docker image + agents)
 
 ```bash
-./bench setup
+./arena setup
 ```
 
 This builds the Python sandbox Docker image, installs the `cline` and
@@ -91,11 +92,11 @@ The smoke config runs **one task, cloud-only**, so you don't need a
 local model pulled yet:
 
 ```bash
-./bench sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
-./bench analyze results/runs/v1.4-smoke
+./arena sweep --config configs/v1.4-smoke.yaml --strategies always-cloud --seeds 42
+./arena analyze results/runs/v1.4-smoke
 ```
 
-If `bench analyze` produces a `bootstrap_cis.json` and a chart, the
+If `arena analyze` produces a `bootstrap_cis.json` and a chart, the
 harness is wired up correctly.
 
 ### 5. Run a real sweep (local model + hybrid strategies)
@@ -104,20 +105,20 @@ Pull a local model and run the canonical 4-strategy sweep:
 
 ```bash
 ollama pull gemma4:31b                                # ~18 GB
-./bench sweep \
+./arena sweep \
     --config configs/v1.4-canonical-gemma4.yaml \
     --strategies always-cloud,always-local,heuristic,cascade \
     --seeds 42,7,13
-./bench analyze results/runs/v1.4-canonical-gemma4
+./arena analyze results/runs/v1.4-canonical-gemma4
 ```
 
 Expected wall-time on M4 Max 64 GB: 10 to 15 hours. Expected cloud spend
 at gpt-5.5 list pricing: $30 to $50. Pause and resume any time:
 
 ```bash
-./bench pause      # frees the laptop, keeps Ollama warm
-./bench resume     # picks up at the next un-written row
-./bench status     # PID + row count + RUNNING/PAUSED
+./arena pause      # frees the laptop, keeps Ollama warm
+./arena resume     # picks up at the next un-written row
+./arena status     # PID + row count + RUNNING/PAUSED
 ```
 
 When it finishes, compare your numbers against the canonical v1.5.0
@@ -129,11 +130,11 @@ Three commands:
 
 ```bash
 ollama pull <new-model>
-./bench sweep --config configs/v1.4-canonical-gemma4.yaml \
+./arena sweep --config configs/v1.4-canonical-gemma4.yaml \
     --set models.local=<new-model> \
     --set out_dir=results/runs/v1.4-<new-model> \
     --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench analyze results/runs/v1.4-<new-model>
+./arena analyze results/runs/v1.4-<new-model>
 ```
 
 Headline cell to compare:
@@ -179,7 +180,7 @@ work. We scope to where local-vs-cloud cost matters most.
 ![Route every LLM call to the laptop or the cloud, then measure the trade-off](./docs/images/architecture.png)
 
 ```text
-./bench sweep --config configs/v1.4-canonical-gemma4.yaml
+./arena sweep --config configs/v1.4-canonical-gemma4.yaml
     │
     ├── spawns ONE Node router proxy on :8787
     │   (LOCAL_MODEL + CLOUD_MODEL injected from config)
@@ -196,7 +197,7 @@ work. We scope to where local-vs-cloud cost matters most.
             scorer runs the diff in a Docker sandbox
             row written to results/runs/<sweep>/<strategy>/seed-<seed>/raw.jsonl
 
-./bench analyze results/runs/<sweep>/
+./arena analyze results/runs/<sweep>/
     │
     ├── aggregate.json     # per-cell medians + totals
     ├── bootstrap_cis.json # 95% CIs on pass_rate / cost / cloud_fraction
@@ -232,13 +233,13 @@ What to **avoid**:
 For an overnight sweep you can detach + pause + resume:
 
 ```bash
-./bench start  --config configs/v1.4-canonical-qwen3.6.yaml \
+./arena start  --config configs/v1.4-canonical-qwen3.6.yaml \
                --strategies always-cloud,always-local,heuristic,cascade \
                --seeds 42,7,13         # detaches, returns immediately
-./bench status                          # PID + row count + RUNNING/PAUSED
-./bench pause                           # frees the laptop, keeps Ollama warm
-./bench resume                          # picks up at the next un-written row
-./bench stop                            # also kills Ollama (~19 GB freed)
+./arena status                          # PID + row count + RUNNING/PAUSED
+./arena pause                           # frees the laptop, keeps Ollama warm
+./arena resume                          # picks up at the next un-written row
+./arena stop                            # also kills Ollama (~19 GB freed)
 ```
 
 State lives in `/tmp/hcev-sweep.json`. Resume is row-level (`raw.jsonl` is
@@ -246,26 +247,26 @@ appended to as rows complete) so a crash mid-sweep loses at most one row.
 
 ## Bench CLI
 
-All `bench` subcommands are documented in `bench <cmd> --help`.
+All `arena` subcommands are documented in `arena <cmd> --help`.
 
 | Command | Use |
 | --- | --- |
-| `./bench setup` | One-time Docker + npm + venv setup |
-| `./bench sweep` | Run a sweep (auto-spawns the router) |
-| `./bench start` / `pause` / `resume` / `stop` / `status` | Long-sweep lifecycle |
-| `./bench run` | Single-pass run (no router auto-spawn; advanced) |
-| `./bench analyze` | Per-cell medians + bootstrap CIs + charts |
-| `./bench token-budget` | Token-first matrix re-priced under all scenarios |
-| `./bench rejudge` | Re-run the LLM-judge on completed prose rows |
-| `./bench rescore` | Re-run the functional scorer with a fresh sandbox image |
-| `./bench env-detect` | Capture hardware + software snapshot |
-| `./bench show-config` | Print the merged config + its SHA256 |
-| `./bench schema` | Regenerate `configs/schema.json` from the Pydantic model |
+| `./arena setup` | One-time Docker + npm + venv setup |
+| `./arena sweep` | Run a sweep (auto-spawns the router) |
+| `./arena start` / `pause` / `resume` / `stop` / `status` | Long-sweep lifecycle |
+| `./arena run` | Single-pass run (no router auto-spawn; advanced) |
+| `./arena analyze` | Per-cell medians + bootstrap CIs + charts |
+| `./arena token-budget` | Token-first matrix re-priced under all scenarios |
+| `./arena rejudge` | Re-run the LLM-judge on completed prose rows |
+| `./arena rescore` | Re-run the functional scorer with a fresh sandbox image |
+| `./arena env-detect` | Capture hardware + software snapshot |
+| `./arena show-config` | Print the merged config + its SHA256 |
+| `./arena schema` | Regenerate `configs/schema.json` from the Pydantic model |
 
 ## Repo layout
 
 ```text
-hybrid-coding-eval/
+hybrid-arena/
 ├── README.md                     ← you are here
 ├── AGENTS.md                     ← canonical guide for AI coding agents reading the codebase
 ├── CHANGELOG.md                  ← release history
@@ -276,7 +277,7 @@ hybrid-coding-eval/
 ├── bench                         ← top-level CLI dispatcher
 ├── .github/workflows/ci.yml      ← pytest + ruff on 3.11 / 3.12
 │
-├── src/hybrid_coding_eval/
+├── src/hybrid_arena/
 │   ├── core/                     ← config, experiment, metrics, pricing, paths, sandbox
 │   ├── agents/                   ← aider, opencode, mini_swe, cline
 │   ├── scorers/                  ← functional (Docker), swebench
@@ -305,7 +306,7 @@ hybrid-coding-eval/
 Every row carries `task_id`, `route`, `router_strategy`, `seed`,
 `cloud_model_id`, `local_model_id`, `config_sha`, `hardware_profile_ref`.
 Costs are derived from `tokens × pinned pricing` at analyze-time, so a pricing
-edit flows through `./bench analyze` without re-running inference. The harness
+edit flows through `./arena analyze` without re-running inference. The harness
 logs the pricing table SHA256 with each import.
 
 The Node router and the Python harness both read the same
@@ -323,11 +324,11 @@ citation is how a small research project gets seen:
 ```bibtex
 @misc{monga2026hybridcodingeval,
   author       = {Monga, Sanchit and contributors},
-  title        = {hybrid-coding-eval: reproducible cost/latency/quality
+  title        = {hybrid-arena: reproducible cost/latency/quality
                   benchmark for local vs cloud vs hybrid LLM routing on
                   coding tasks},
   year         = {2026},
-  howpublished = {\url{https://github.com/RunanywhereAI/hybrid-coding-eval}},
+  howpublished = {\url{https://github.com/RunanywhereAI/hybrid-arena}},
   note         = {Version 1.5.1}
 }
 ```
@@ -351,4 +352,4 @@ Third-party tools driven by this harness:
 7. [`SECURITY.md`](./SECURITY.md): the vulnerability-disclosure channel.
 
 Questions, reproduction issues, or new-model requests? File an issue:
-<https://github.com/RunanywhereAI/hybrid-coding-eval/issues>
+<https://github.com/RunanywhereAI/hybrid-arena/issues>

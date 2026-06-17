@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from hybrid_coding_eval.core.config.loader import (
+from hybrid_arena.core.config.loader import (
     dump_schema_json,
     load_config,
 )
-from hybrid_coding_eval.core.config.resolve import apply_overrides
+from hybrid_arena.core.config.resolve import apply_overrides
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -140,6 +140,6 @@ def test_schema_json_matches_model():
     )
     from_model = dump_schema_json()
     assert checked_in == from_model, (
-        "configs/schema.json is stale. Regenerate with ``./bench schema "
+        "configs/schema.json is stale. Regenerate with ``./arena schema "
         "--out configs/schema.json`` and commit the diff."
     )

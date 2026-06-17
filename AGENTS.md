@@ -31,17 +31,17 @@ For the canonical design + headline findings:
 
 ```bash
 ollama pull <new-model>
-./bench sweep \
+./arena sweep \
     --config configs/v1.4-canonical-gemma4.yaml \
     --set models.local=<new-model> \
     --set out_dir=results/runs/v1.4-<new-model> \
     --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench analyze results/runs/v1.4-<new-model>
+./arena analyze results/runs/v1.4-<new-model>
 ```
 
-`./bench setup` is idempotent — re-run any time. Long-form lifecycle
+`./arena setup` is idempotent — re-run any time. Long-form lifecycle
 commands (`start`/`pause`/`resume`/`stop`/`status`) live in
-`./bench --help`.
+`./arena --help`.
 
 ## Common commands
 
@@ -62,7 +62,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev,agents]"
 # ruff (repo-wide)
 .venv/bin/ruff check src/ tests/
 
-# router proxy — auto-spawned by `bench sweep`. Manual start (rarely needed):
+# router proxy — auto-spawned by `arena sweep`. Manual start (rarely needed):
 (cd router && ./start.sh)
 curl -s http://127.0.0.1:8787/healthz | jq .
 
@@ -70,31 +70,31 @@ curl -s http://127.0.0.1:8787/healthz | jq .
 cd router && npm test         # writes tests/RESULTS.md
 
 # foreground sweep
-./bench sweep --config configs/v1.4-canonical-gemma4.yaml \
+./arena sweep --config configs/v1.4-canonical-gemma4.yaml \
     --strategies always-cloud,always-local,heuristic,cascade --seeds 42,7,13
-./bench sweep --config configs/v1.4-canonical-gemma4.yaml --dry-run
+./arena sweep --config configs/v1.4-canonical-gemma4.yaml --dry-run
 
 # inspection / one-shot helpers
-./bench show-config  --config configs/v1.4-canonical-gemma4.yaml
-./bench env-detect   --out results/my-run/env-manifest.json
-./bench analyze      results/runs/v1.4-canonical-gemma4
-./bench token-budget results/runs/v1.4-canonical-gemma4
-./bench schema       --out configs/schema.json
-./bench setup        # first-run setup: Docker image, aux models, aider, cline
+./arena show-config  --config configs/v1.4-canonical-gemma4.yaml
+./arena env-detect   --out results/my-run/env-manifest.json
+./arena analyze      results/runs/v1.4-canonical-gemma4
+./arena token-budget results/runs/v1.4-canonical-gemma4
+./arena schema       --out configs/schema.json
+./arena setup        # first-run setup: Docker image, aux models, aider, cline
 ```
 
 ### Sweep lifecycle (background, pausable, resumable)
 
 ```bash
-./bench start  --config configs/v1.4-canonical-qwen3.6.yaml \
+./arena start  --config configs/v1.4-canonical-qwen3.6.yaml \
                --strategies always-cloud,always-local,heuristic,cascade \
                --seeds 42,7,13
-./bench status            # PID, config, log path, current row count
-./bench pause             # kill orchestrator + agents + router; Ollama stays warm
-./bench resume            # picks up at next un-written row (raw.jsonl is append-only)
-./bench stop              # also kills Ollama (~19 GB freed); state file retained
-./bench stop --clear-state          # also wipes /tmp/hcev-sweep.json
-./bench stop --keep-ollama-app      # only kill model runners; keep Ollama.app
+./arena status            # PID, config, log path, current row count
+./arena pause             # kill orchestrator + agents + router; Ollama stays warm
+./arena resume            # picks up at next un-written row (raw.jsonl is append-only)
+./arena stop              # also kills Ollama (~19 GB freed); state file retained
+./arena stop --clear-state          # also wipes /tmp/hcev-sweep.json
+./arena stop --keep-ollama-app      # only kill model runners; keep Ollama.app
 ```
 
 State lives at `/tmp/hcev-sweep.json` and persists across reboots until
@@ -113,7 +113,7 @@ you `--clear-state`.
 | `CODE_OF_CONDUCT.md` | Short and direct (be kind, stay on-topic, email maintainer for issues) |
 | `SECURITY.md` | Vulnerability-reporting channel |
 | `LICENSE` | MIT (code + data + docs all unified under MIT in v1.5.1+) |
-| `bench` | Shell wrapper → `python -m hybrid_coding_eval.cli.bench` |
+| `arena` | Shell wrapper → `python -m hybrid_arena.cli.bench` |
 | `pyproject.toml` | Python package config — version, deps, ruff, pytest |
 | `requirements.txt` | Pip pins (kept in sync with `[project.dependencies]`) |
 | `.env.example` | Template — copy to `.env`, fill `OPEN_AI_API_KEY` |
@@ -139,19 +139,19 @@ configs/
 
 YAML configs are the canonical sweep-definition surface. The schema at
 `configs/schema.json` is auto-generated from
-`src/hybrid_coding_eval/core/config/schema.py` — never hand-edit;
-regenerate with `./bench schema --out configs/schema.json`. Override
+`src/hybrid_arena/core/config/schema.py` — never hand-edit;
+regenerate with `./arena schema --out configs/schema.json`. Override
 fields on the CLI with `--set key.path=value` instead of editing the
 YAML for one-shot runs.
 
-### `src/hybrid_coding_eval/` — the Python package
+### `src/hybrid_arena/` — the Python package
 
 ```
-src/hybrid_coding_eval/
-├── cli/                          # ./bench dispatcher and subcommands
+src/hybrid_arena/
+├── cli/                          # ./arena dispatcher and subcommands
 │   ├── bench.py                  # top-level CLI — all subparsers + lifecycle
-│   ├── run.py                    # ./bench run — single-pass sweep orchestrator
-│   └── env_detect.py             # ./bench env-detect — hardware + software snapshot
+│   ├── run.py                    # ./arena run — single-pass sweep orchestrator
+│   └── env_detect.py             # ./arena env-detect — hardware + software snapshot
 │
 ├── core/                         # shared dispatcher + I/O + config
 │   ├── experiment.py             # build_task_plan, run_pair — the dispatcher loop
@@ -189,7 +189,7 @@ src/hybrid_coding_eval/
 │   ├── bootstrap.py              # 95% percentile CIs per cell
 │   ├── decision_matrix.py        # task_class × agent → recommendation
 │   ├── cost_scenarios.py         # re-price under 5 scenarios
-│   ├── token_budget.py           # ./bench token-budget — token-first matrix
+│   ├── token_budget.py           # ./arena token-budget — token-first matrix
 │   ├── token_share.py            # cloud_fraction analysis
 │   └── reprice.py                # standalone re-pricing helper
 │
@@ -200,7 +200,7 @@ src/hybrid_coding_eval/
 
 ### `router/` — zero-deps Node hybrid proxy
 
-OpenAI-compatible HTTP proxy on `:8787`, **auto-spawned by `bench sweep`**.
+OpenAI-compatible HTTP proxy on `:8787`, **auto-spawned by `arena sweep`**.
 The `model` field of each request selects a strategy. Append
 `!local`/`!cloud` to force a backend on one call.
 
@@ -300,7 +300,7 @@ notes.
 ## Architecture in 90 seconds
 
 ```text
-./bench sweep --config configs/v1.4-canonical-gemma4.yaml --strategies heuristic --seeds 42
+./arena sweep --config configs/v1.4-canonical-gemma4.yaml --strategies heuristic --seeds 42
     → cli/bench._cmd_sweep
     → spawn router/server.mjs (LOCAL_MODEL + CLOUD_MODEL injected from config)
     → for each (strategy, seed):
@@ -337,9 +337,9 @@ via `bench_run_id` in the model field.
 
 - **Use `.venv/bin/python` and `.venv/bin/pytest`**, not bare `python`.
   The repo installs editable via `pip install -e ".[dev]"`.
-- **The router proxy is auto-spawned by `bench sweep`.** You don't need
+- **The router proxy is auto-spawned by `arena sweep`.** You don't need
   a separate router terminal. For debugging, run `(cd router &&
-  ./start.sh)` and pass `--external-router` to `bench sweep`.
+  ./start.sh)` and pass `--external-router` to `arena sweep`.
 - **Tests are not split by speed.** All 120 fast tests run on every CI
   build. SWE-bench Docker tests skip gracefully when Docker is
   unavailable.

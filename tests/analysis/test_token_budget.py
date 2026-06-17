@@ -1,4 +1,4 @@
-"""Tests for :mod:`hybrid_coding_eval.analysis.token_budget` (P0.1)."""
+"""Tests for :mod:`hybrid_arena.analysis.token_budget` (P0.1)."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from hybrid_coding_eval.analysis.token_budget import (  # noqa: E402
+from hybrid_arena.analysis.token_budget import (  # noqa: E402
     HEADLINE_SCENARIOS,
     compute_token_budget,
     render_csv,
     render_markdown,
 )
-from hybrid_coding_eval.core.metrics import (  # noqa: E402
+from hybrid_arena.core.metrics import (  # noqa: E402
     Latency,
     Quality,
     ResultRow,

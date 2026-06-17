@@ -33,7 +33,7 @@ across 1,644 rows in v1.4.
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                      ./bench sweep --config X.yaml                       │
+│                      ./arena sweep --config X.yaml                       │
 │                                                                          │
 │  ┌─────────────────────┐                                                 │
 │  │  cli/bench.py       │  spawns one Node router proxy with              │
@@ -90,7 +90,7 @@ externally-maintained tool we wrap thinly.
 | `mini-swe-agent`   | minimalist bash-only ReAct| Closest to SWE-bench reference; small surface area | Needs Docker for SWE-bench Verified                  |
 | `cline`            | Plan / Act with 8-14 turns| Iteration wins puzzles + refactors at 30B local    | Highest token cost per cell                          |
 
-Each wrapper lives in `src/hybrid_coding_eval/agents/<agent>.py` and exposes
+Each wrapper lives in `src/hybrid_arena/agents/<agent>.py` and exposes
 one `run(task, *, proxy_url, ...) -> ResultRow` function. The orchestrator
 calls them through `core/experiment.py:_runner_for(agent)`.
 
@@ -141,7 +141,7 @@ sweeps don't.
 | `refactors` | Hand-written real-PR patterns     | Multi-file refactor / review / script tasks (D1+D5 in v1.4 canonical; v1.5 adds 4 D6 hard implementation challenges) | 12 (8 + 4 D6) |
 | `real-prs`  | SWE-bench Verified subset         | Repo-level patches against Docker testbeds              | (v1.6+ work; adapter shipped) |
 
-Each task adapter lives in `src/hybrid_coding_eval/tasks/<class>/`. A task is
+Each task adapter lives in `src/hybrid_arena/tasks/<class>/`. A task is
 a small dataclass: `id`, `fixture_path`, `prompt`, `run_cmd`. Scoring is per
 class — `puzzles` uses pytest in a Docker sandbox; `refactors` uses a
 dispatcher in `tasks/refactors/scorers.py` that picks the right per-task
@@ -152,7 +152,7 @@ checker (e.g. "does the diff add the rate-limit guard?").
 ## 6. The result schema
 
 Every row in `results/runs/<sweep>/raw.jsonl` is a `ResultRow` (see
-`src/hybrid_coding_eval/core/metrics.py`):
+`src/hybrid_arena/core/metrics.py`):
 
 ```python
 @dataclass
@@ -189,7 +189,7 @@ Three invariants:
 
 ## 7. The analysis pipeline
 
-`./bench analyze <sweep_dir>` runs these in order:
+`./arena analyze <sweep_dir>` runs these in order:
 
 1. `aggregate.py` — per-`(category, route, strategy)` medians and totals.
 2. `bootstrap.py` — 95% percentile CIs per cell (non-parametric, 1k resamples).
@@ -243,8 +243,8 @@ matrix:
 
 ```bash
 ollama pull <new-model>
-./bench setup                # idempotent; first run only
-./bench sweep \
+./arena setup                # idempotent; first run only
+./arena sweep \
     --config configs/v1.4-canonical-gemma4.yaml \
     --set models.local=<new-model> \
     --set out_dir=results/runs/v1.4-<new-model> \
@@ -252,10 +252,10 @@ ollama pull <new-model>
     --seeds 42,7,13
 ```
 
-`./bench setup` checks prereqs (Docker, Ollama, Node, API keys) and
+`./arena setup` checks prereqs (Docker, Ollama, Node, API keys) and
 builds the sandbox image / installs the agent CLIs. Long-form lifecycle
-commands (`./bench start` / `pause` / `resume` / `stop` / `status`) are
-documented inline at `./bench --help` and exist so you can detach the
+commands (`./arena start` / `pause` / `resume` / `stop` / `status`) are
+documented inline at `./arena --help` and exist so you can detach the
 sweep and reclaim the laptop.
 
 Expected runtime on an M4 Max 64 GB: 10–15 hours, ≈ $30–50 cloud spend at
@@ -265,7 +265,7 @@ need a separate router terminal.
 When the sweep completes:
 
 ```bash
-./bench analyze results/runs/v1.4-<new-model>
+./arena analyze results/runs/v1.4-<new-model>
 jq '.cells["refactors::cline::heuristic"].pass_rate' \
    results/runs/v1.4-<new-model>/bootstrap_cis.json
 ```
@@ -322,14 +322,14 @@ number. Compare against the v1.4.1 release notes for context.
 
 ## 12. Pointers
 
-- Add a new agent → write a `src/hybrid_coding_eval/agents/<name>.py` with
+- Add a new agent → write a `src/hybrid_arena/agents/<name>.py` with
   a `run(task, *, proxy_url, ...) -> ResultRow` function, register it in
   `core/experiment.py:_runner_for`, add `<name>` to the `Agent` literal in
   `core/config/schema.py`. Tests live in `tests/agents/test_<name>.py`.
 - Add a new strategy → write a function in `router/strategies.mjs`,
   register it in the `STRATEGY_REGISTRY` at the bottom of that file, add
   the name to `RouteStrategy` in `core/config/schema.py`.
-- Add a new task class → create `src/hybrid_coding_eval/tasks/<class>/`
+- Add a new task class → create `src/hybrid_arena/tasks/<class>/`
   with `adapter.py` (loads tasks) and `scorers.py` (scores a row); add the
   class name to `CATEGORY_SOURCES` in `core/experiment.py` and `TaskClass`
   in `core/config/schema.py`.

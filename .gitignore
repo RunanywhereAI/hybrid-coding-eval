@@ -17,7 +17,7 @@ _run.pid
 # --- results ---
 # v1.0.0 dataset files were force-added before v1.1 and stay tracked
 # (gitignore cannot untrack already-tracked files).
-# v1.1+: new results from ./bench sweep go into GitHub release tarballs,
+# v1.1+: new results from ./arena sweep go into GitHub release tarballs,
 # not git. Only the README + .gitkeep keep the directory shape on clone.
 results/*
 !results/README.md
@@ -29,6 +29,9 @@ results/runs/*
 # --- vendored reference clones (treated as read-only vendored deps) ---
 vendor/opencode/
 vendor/*/.git/
+
+# --- external reference repos cloned for study/comparison (local-only) ---
+EXTERNAL/
 
 # --- router telemetry ---
 # decisions.jsonl + all other router logs grow on every request. Everything

@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`hybrid_coding_eval.analysis.bootstrap`.
+"""Unit tests for :mod:`hybrid_arena.analysis.bootstrap`.
 
 Deterministic via fixed RNG seed. Exercises:
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from hybrid_coding_eval.analysis.bootstrap import (
+from hybrid_arena.analysis.bootstrap import (
     bootstrap_aggregate,
     bootstrap_cells_for_rows,
     cell_key,

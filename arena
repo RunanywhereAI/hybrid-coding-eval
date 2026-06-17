@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Top-level convenience wrapper around the hybrid_arena CLI.
+# Lets users run `./arena run --config ...` without remembering the
+# long python module path.
+#
+# Resolve the repo root (directory containing this file), then exec
+# the venv's python on the dispatcher module. Use the venv's python if
+# present so we pick up the pinned dependencies; fall back to system
+# python otherwise.
+
+set -e
+HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -x "${HERE}/.venv/bin/python" ]; then
+  PY="${HERE}/.venv/bin/python"
+else
+  PY="$(command -v python3 || command -v python)"
+fi
+exec "${PY}" -m hybrid_arena.cli.bench "$@"

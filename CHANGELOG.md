@@ -14,8 +14,8 @@ changes; safe to take.
 
 - `NOTICE.md`, `LICENSE-DATA`, `LICENSE.md` — consolidated to a single
   MIT `LICENSE` that covers code, data, and docs.
-- `scripts/reproduce.sh` — `./bench setup` already does prereq checks
-  and the smoke sweep is a one-liner (`./bench sweep --config
+- `scripts/reproduce.sh` — `./arena setup` already does prereq checks
+  and the smoke sweep is a one-liner (`./arena sweep --config
   configs/v1.4-smoke.yaml`).
 - `logs/v3.3/` — historical sweep logs moved to maintainer-private
   storage. `logs/` is now gitignored.
@@ -29,15 +29,15 @@ changes; safe to take.
 - **`README.md` rewritten end-to-end** — six-cell headline table, real
   quickstart with accurate prereq + timing estimates, "picking a config
   for real work" section distilled from the v1.5 leaderboard, full
-  `bench` CLI table, MIT-only license + citation block.
+  `arena` CLI table, MIT-only license + citation block.
 - **`AGENTS.md` refreshed for v1.5.0** — D6 task shape documented,
   v1.5 configs added to the tree, latest-results pointer updated,
   conventions section reflects single-letter codes are retired.
 - **`CODE_OF_CONDUCT.md` simplified** to a short, direct version.
-- **`src/hybrid_coding_eval/__init__.py`** — `__version__` is now
+- **`src/hybrid_arena/__init__.py`** — `__version__` is now
   `"1.5.0"` (was stuck at `"0.1.0"`).
 - **Source-tree docstrings + READMEs** — `lib.*` stale references
-  rewritten to `core.*` / `hybrid_coding_eval.*`; "Category D/B/X"
+  rewritten to `core.*` / `hybrid_arena.*`; "Category D/B/X"
   rewritten to `refactors` / `real-prs` / `puzzles` end-to-end.
 - **Tracked `raw.jsonl` datasets** — sanitized **263 home-directory
   path leaks** to repo-relative form. JSON integrity preserved
@@ -94,7 +94,7 @@ hard tasks with 3 seeds each. Full notes at
 ### Fixed
 
 - **aider pytest-summary parser bug.** `_parse_pytest_summary`
-  in `src/hybrid_coding_eval/agents/aider.py` previously read
+  in `src/hybrid_arena/agents/aider.py` previously read
   the summary line positionally and missed the "failed" count
   when it preceded "passed" (e.g. `2 failed, 21 passed` was
   scored 0/2 instead of 21/23). New implementation uses
@@ -115,7 +115,7 @@ hard tasks with 3 seeds each. Full notes at
 
 **Fresh-user reproducibility patch.** Targets the last two paper cuts a
 brand-new clone hits on the way from `git clone` to a green
-`bench analyze` chart. Full notes at
+`arena analyze` chart. Full notes at
 [`docs/release-notes/v1.4.4.md`](./docs/release-notes/v1.4.4.md).
 
 ### Changed
@@ -129,11 +129,11 @@ brand-new clone hits on the way from `git clone` to a green
 
 ### Fixed
 
-- **`bench analyze` works on a clean `pip install -e ".[dev]"`.**
+- **`arena analyze` works on a clean `pip install -e ".[dev]"`.**
   `matplotlib` + `numpy` are now declared in
   `pyproject.toml::[project.dependencies]` (they were previously only
   in `requirements.txt`, so the canonical install path left them
-  missing and `bench analyze` died with
+  missing and `arena analyze` died with
   `ModuleNotFoundError: No module named 'matplotlib'`).
 - **Per-agent scratch directories no longer carry the legacy R-prefix.**
   aider writes to `outputs/aider_<task>_<strategy>/`, cline to
@@ -178,7 +178,7 @@ the v1.4 harness. No new benchmark data; the v1.4.1 leaderboard
   `sudo apt install …` command for the host OS, plus a hint to start
   the Ollama daemon when port 11434 isn't reachable.
 - **`pyproject.toml`** — `matplotlib` and `numpy` are now first-class
-  runtime dependencies. `bench analyze` needs them for chart
+  runtime dependencies. `arena analyze` needs them for chart
   generation, but they were previously only in `requirements.txt`,
   so `pip install -e ".[dev]"` left them missing. Fresh installs now
   work end-to-end with zero extra steps.
@@ -222,11 +222,11 @@ the v1.4 harness. No new benchmark data; the v1.4.1 leaderboard
 
 ### Added
 
-- **`scripts/reproduce.sh`** — one-command reproducer that checks every prerequisite, sets up the venv, runs `./bench setup`, and either runs the smoke sweep (`--smoke`) or forwards arbitrary `./bench sweep` arguments. ~30 s end-to-end for the smoke pass.
+- **`scripts/reproduce.sh`** — one-command reproducer that checks every prerequisite, sets up the venv, runs `./arena setup`, and either runs the smoke sweep (`--smoke`) or forwards arbitrary `./arena sweep` arguments. ~30 s end-to-end for the smoke pass.
 - **`docs/HYBRID_ROUTING_DESIGN.md`** — single canonical design doc consolidating the eight previously-separate `docs/*.md` files (routing strategies, agents, methodology, schema, add-a-model recipe).
 - **`SECURITY.md`** — vulnerability-disclosure channel (private email).
-- **`bench analyze` walks subdirectories.** Point it at a sweep root and it analyses every `<strategy>/seed-<seed>/raw.jsonl` it finds.
-- **`bench setup` fails fast** (10 s timeout) when the Docker daemon is down, instead of hanging on the `docker image inspect` call.
+- **`arena analyze` walks subdirectories.** Point it at a sweep root and it analyses every `<strategy>/seed-<seed>/raw.jsonl` it finds.
+- **`arena setup` fails fast** (10 s timeout) when the Docker daemon is down, instead of hanging on the `docker image inspect` call.
 
 ### Changed
 
@@ -300,7 +300,7 @@ v1.4.1 sweeps spent ~$50 incremental cloud (gpt-5.5 list pricing). Total v1.4 li
 
 ## [1.4.0] — 2026-05-22
 
-**Cleanup + production-pipeline release.** v1.4 deletes the legacy non-agentic R1–R5 routes and the experimental Stanford-Minion / Devminion wrappers — the harness is now **agent-only** (aider · opencode · mini-swe-agent · claude-code · cline). Drops the `Rn` prefix; renames `runners/` → `agents/` and `benchmarks/` → `tasks/`. Adds 5 production lifecycle commands (`./bench start|pause|resume|stop|status`). `bench sweep` auto-spawns the router proxy from `models.local`, so the canonical reproducer is now four copy-paste commands.
+**Cleanup + production-pipeline release.** v1.4 deletes the legacy non-agentic R1–R5 routes and the experimental Stanford-Minion / Devminion wrappers — the harness is now **agent-only** (aider · opencode · mini-swe-agent · claude-code · cline). Drops the `Rn` prefix; renames `runners/` → `agents/` and `benchmarks/` → `tasks/`. Adds 5 production lifecycle commands (`./arena start|pause|resume|stop|status`). `arena sweep` auto-spawns the router proxy from `models.local`, so the canonical reproducer is now four copy-paste commands.
 
 ### Headline canonical (708 rows, ~20h wall, $90.48 cloud spend on M4 Max 64GB)
 
@@ -314,8 +314,8 @@ v1.4.1 sweeps spent ~$50 incremental cloud (gpt-5.5 list pricing). Total v1.4 li
 ### Added
 
 - **`configs/v1.4-canonical.yaml`** — the single canonical v1.4 sweep config covering 5 agentic routes × 8 strategies × 18 tasks × 3 local models. Drop-in surface for new local models.
-- **`bench sweep` auto-spawns the router proxy** — reads `models.local` from the config, spawns `node router/server.mjs` with `LOCAL_MODEL=<model>`, waits for `/healthz`, runs the sweep, tears the router down on completion. Eliminates the manual `(cd router && ./start.sh) &` step from the reproducer.
-- **`--external-router` flag** on `bench sweep` — opt-out for users who want to manage the router proxy themselves.
+- **`arena sweep` auto-spawns the router proxy** — reads `models.local` from the config, spawns `node router/server.mjs` with `LOCAL_MODEL=<model>`, waits for `/healthz`, runs the sweep, tears the router down on completion. Eliminates the manual `(cd router && ./start.sh) &` step from the reproducer.
+- **`--external-router` flag** on `arena sweep` — opt-out for users who want to manage the router proxy themselves.
 - **`docs/release-notes/v1.4.0.md`** — tracked-in-git release notes for v1.4.0 (replaces the GH-release-only `findings.md` from v1.0–v1.3).
 - **"How to read the results" cell→headline map** — maps each headline number to its exact `bootstrap_cis.json` cell key with `jq` examples.
 - **`pydantic` and `pyyaml`** in `requirements.txt` (were pyproject-only — broke fresh `pip install -r requirements.txt` installs).
@@ -337,27 +337,27 @@ v1.4.1 sweeps spent ~$50 incremental cloud (gpt-5.5 list pricing). Total v1.4 li
 ### Fixed
 
 - **`requirements.txt` was missing `pydantic` and `pyyaml`** — they were declared only in `pyproject.toml`'s `[project.dependencies]`. Fresh-install users hitting `pip install -r requirements.txt` got `ModuleNotFoundError: pydantic` from the config loader. Now mirrored in both files with the same pins.
-- **`bench sweep` required a manually-started router** — the reproducer recipe was incomplete (audit finding #4). Auto-spawn-router fixes the "I followed the GH release recipe and got Connection refused" class of bug.
+- **`arena sweep` required a manually-started router** — the reproducer recipe was incomplete (audit finding #4). Auto-spawn-router fixes the "I followed the GH release recipe and got Connection refused" class of bug.
 
 ### Pre-v1.4 history
 
-The v1.0.0 → v1.3.0 release lineage is preserved on the [GitHub releases page](https://github.com/RunanywhereAI/hybrid-coding-eval/releases). Highlights below; see each release's notes for full per-version detail.
+The v1.0.0 → v1.3.0 release lineage is preserved on the [GitHub releases page](https://github.com/RunanywhereAI/hybrid-arena/releases). Highlights below; see each release's notes for full per-version detail.
 
 - **v1.3.0 (2026-05-20)** — Multi-model + threshold sweep release. 507 rows across 3 sweeps. First hybrid-equals-cloud result with statistical significance: **gemma4:31b + heuristic = 96% [88, 100]** on real_dev D-tasks. (See GH release `v1.3.0` for full notes.)
 - **v1.2.0 (2026-05-19)** — Single-agent v1.2 release. Locked in **R7 aider** as the canonical agentic route. 60-row canonical sweep with qwen3-coder:30b. (See GH release `v1.2.0`.)
-- **v1.1.3 / v1.1.2 / v1.1.1 / v1.1.0 (2026-05-19)** — Agentic-routes release lineage. Added R8 opencode, the Exercism Python benchmark (category X), the agent-aware `heuristic` strategy, `./bench sweep`, bootstrap CIs, correlation-id token attribution. (See GH release tags `v1.1.x`.)
-- **v1.0.0 (2026-05-18)** — First public OSS release. R1–R5 non-agentic surface, 250-row v3 publication sweep, `./bench setup`. (See GH release `v1.0.0`.)
+- **v1.1.3 / v1.1.2 / v1.1.1 / v1.1.0 (2026-05-19)** — Agentic-routes release lineage. Added R8 opencode, the Exercism Python benchmark (category X), the agent-aware `heuristic` strategy, `./arena sweep`, bootstrap CIs, correlation-id token attribution. (See GH release tags `v1.1.x`.)
+- **v1.0.0 (2026-05-18)** — First public OSS release. R1–R5 non-agentic surface, 250-row v3 publication sweep, `./arena setup`. (See GH release `v1.0.0`.)
 - **Pre-1.0 (v0.x → v3.x)** — Internal research iterations. The v3.3 sweep (3,581 rows, 33 variants, 6 local models) is the canonical pre-1.0 corpus under `results/runs/`. The 250-row v3 sweep at `results/runs/07-v3-devstral-all-routes/` is preserved bit-identically.
 
-[Unreleased]: https://github.com/RunanywhereAI/hybrid-coding-eval/compare/v1.4.3...HEAD
-[1.4.3]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.3
-[1.4.2]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.2
-[1.4.1]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.1
-[1.4.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.4.0
-[1.3.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.3.0
-[1.2.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.2.0
-[1.1.3]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.3
-[1.1.2]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.2
-[1.1.1]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.1
-[1.1.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.1.0
-[1.0.0]: https://github.com/RunanywhereAI/hybrid-coding-eval/releases/tag/v1.0.0
+[Unreleased]: https://github.com/RunanywhereAI/hybrid-arena/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.4.3
+[1.4.2]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.4.2
+[1.4.1]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.4.1
+[1.4.0]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.4.0
+[1.3.0]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.3.0
+[1.2.0]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.2.0
+[1.1.3]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.1.3
+[1.1.2]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.1.2
+[1.1.1]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.1.1
+[1.1.0]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.1.0
+[1.0.0]: https://github.com/RunanywhereAI/hybrid-arena/releases/tag/v1.0.0

@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pytest
 
-from hybrid_coding_eval.core.experiment import CATEGORY_SOURCES, load_category_tasks
-from hybrid_coding_eval.core.metrics import Quality
-from hybrid_coding_eval.tasks.refactors import scorers as real_dev_scorers
-from hybrid_coding_eval.tasks.refactors.adapter import (
+from hybrid_arena.core.experiment import CATEGORY_SOURCES, load_category_tasks
+from hybrid_arena.core.metrics import Quality
+from hybrid_arena.tasks.refactors import scorers as real_dev_scorers
+from hybrid_arena.tasks.refactors.adapter import (
     Task,
     load_tasks,
     task_prompt,
